@@ -40,26 +40,35 @@ def main():
 
     # Build with PyInstaller
     print(f"{ICONS['build']} Building with PyInstaller...")
-    pyinstaller_cmd = """
-    poetry run pyinstaller \
-      --onefile \
-      --name roller-installer \
-      --clean \
-      --strip \
-      --optimize 2 \
-      --exclude-module tkinter \
-      --exclude-module test \
-      --exclude-module unittest \
-      --exclude-module pdb \
-      --exclude-module multiprocessing \
-      --exclude-module sqlite3 \
-      --exclude-module numpy \
-      --exclude-module pandas \
-      --exclude-module matplotlib \
-      --exclude-module PIL \
-      --exclude-module cv2 \
-      main.py
-    """
+
+    # Use different flags based on platform
+    if sys.platform == "win32":
+        # Simplified build for Windows - avoid problematic optimizations
+        pyinstaller_cmd = (
+            "poetry run pyinstaller --onefile --name roller-installer --clean main.py"
+        )
+    else:
+        # Full optimizations for Unix systems
+        pyinstaller_cmd = """
+        poetry run pyinstaller \
+          --onefile \
+          --name roller-installer \
+          --clean \
+          --strip \
+          --optimize 2 \
+          --exclude-module tkinter \
+          --exclude-module test \
+          --exclude-module unittest \
+          --exclude-module pdb \
+          --exclude-module multiprocessing \
+          --exclude-module sqlite3 \
+          --exclude-module numpy \
+          --exclude-module pandas \
+          --exclude-module matplotlib \
+          --exclude-module PIL \
+          --exclude-module cv2 \
+          main.py
+        """
     run_command(pyinstaller_cmd, "Building installer")
 
     # Determine binary path

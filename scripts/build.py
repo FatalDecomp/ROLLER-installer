@@ -1,5 +1,4 @@
 #!/usr/bin/env python3
-# MISE description="Build native ROLLER installer binary with optimizations"
 """Build optimized ROLLER installer binary."""
 
 import subprocess
@@ -34,13 +33,14 @@ def main():
       --exclude-module tkinter \
       --exclude-module test \
       --exclude-module unittest \
-      --exclude-module email \
-      --exclude-module html \
-      --exclude-module http \
-      --exclude-module xml \
       --exclude-module pdb \
       --exclude-module multiprocessing \
       --exclude-module sqlite3 \
+      --exclude-module numpy \
+      --exclude-module pandas \
+      --exclude-module matplotlib \
+      --exclude-module PIL \
+      --exclude-module cv2 \
       main.py
     """
     run_command(pyinstaller_cmd, "Building installer")
@@ -59,17 +59,28 @@ def main():
     size_before = binary_path.stat().st_size / (1024 * 1024)
     print(f"📏 Size before UPX: {size_before:.2f} MB")
 
-    # Compress with UPX
-    print("🗜️  Compressing with UPX...")
-    upx_cmd = f"upx --best --lzma {binary_path}"
-    run_command(upx_cmd, "Applying UPX compression")
+    # Try to compress with UPX if available
+    upx_result = subprocess.run(["which", "upx"], capture_output=True)
+    if upx_result.returncode == 0:
+        print("🗜️  Compressing with UPX...")
+        upx_cmd = f"upx --best --lzma {binary_path}"
+        try:
+            run_command(upx_cmd, "Applying UPX compression")
 
-    # Show final size
-    size_after = binary_path.stat().st_size / (1024 * 1024)
-    reduction = ((size_before - size_after) / size_before) * 100
+            # Show final size with compression
+            size_after = binary_path.stat().st_size / (1024 * 1024)
+            reduction = ((size_before - size_after) / size_before) * 100
+            print("✅ Build complete!")
+            print(f"📏 Final size: {size_after:.2f} MB (reduced by {reduction:.1f}%)")
+        except Exception as e:
+            print(f"⚠️  UPX compression failed: {e}")
+            print("✅ Build complete!")
+            print(f"📏 Final size: {size_before:.2f} MB (uncompressed)")
+    else:
+        print("ℹ️  UPX not found, skipping compression")
+        print("✅ Build complete!")
+        print(f"📏 Final size: {size_before:.2f} MB (uncompressed)")
 
-    print("✅ Build complete!")
-    print(f"📏 Final size: {size_after:.2f} MB (reduced by {reduction:.1f}%)")
     print(f"📂 Binary location: {binary_path}")
 
 

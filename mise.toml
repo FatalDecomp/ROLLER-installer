@@ -1,6 +1,6 @@
 [tools]
-poetry = "2"
 python = "3"
+"pipx:poetry" = "2"
 act = "latest"
 usage = "latest"
 ruff = "latest"

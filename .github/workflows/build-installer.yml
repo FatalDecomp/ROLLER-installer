@@ -76,26 +76,39 @@ jobs:
             curl --silent --location https://raw.githubusercontent.com/houseabsolute/ubi/master/bootstrap/bootstrap-ubi.sh | TARGET=$(pwd) sh
           fi
 
-      - name: Create release ZIP
+      - name: Create release ZIP (Windows)
+        if: runner.os == 'Windows'
+        working-directory: dist
+        shell: powershell
+        run: |
+          # Verify both binaries exist
+          Get-ChildItem
+
+          if (-not (Test-Path "roller-installer.exe") -or -not (Test-Path "ubi.exe")) {
+            Write-Error "Missing binaries!"
+            exit 1
+          }
+
+          # Create ZIP using PowerShell
+          Compress-Archive -Path "roller-installer.exe", "ubi.exe" -DestinationPath "${{ matrix.artifact-name }}.zip"
+
+          # Verify ZIP was created
+          Get-ChildItem "${{ matrix.artifact-name }}.zip"
+
+      - name: Create release ZIP (Unix)
+        if: runner.os != 'Windows'
         working-directory: dist
         shell: bash
         run: |
           # Verify both binaries exist
           ls -la
 
-          if [[ "${{ runner.os }}" == "Windows" ]]; then
-            if [[ ! -f "roller-installer.exe" || ! -f "ubi.exe" ]]; then
-              echo "Missing binaries!"
-              exit 1
-            fi
-            zip ${{ matrix.artifact-name }}.zip roller-installer.exe ubi.exe
-          else
-            if [[ ! -f "roller-installer" || ! -f "ubi" ]]; then
-              echo "Missing binaries!"
-              exit 1
-            fi
-            zip ${{ matrix.artifact-name }}.zip roller-installer ubi
+          if [[ ! -f "roller-installer" || ! -f "ubi" ]]; then
+            echo "Missing binaries!"
+            exit 1
           fi
+
+          zip ${{ matrix.artifact-name }}.zip roller-installer ubi
 
           # Verify ZIP was created and list contents
           ls -la ${{ matrix.artifact-name }}.zip

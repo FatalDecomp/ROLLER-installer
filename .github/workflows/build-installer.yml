@@ -76,56 +76,33 @@ jobs:
             curl --silent --location https://raw.githubusercontent.com/houseabsolute/ubi/master/bootstrap/bootstrap-ubi.sh | TARGET=$(pwd) sh
           fi
 
-      - name: Create release ZIP (Windows)
-        if: runner.os == 'Windows'
-        working-directory: dist
-        shell: powershell
-        run: |
-          # Verify both binaries exist
-          Get-ChildItem
-
-          if (-not (Test-Path "roller-installer.exe") -or -not (Test-Path "ubi.exe")) {
-            Write-Error "Missing binaries!"
-            exit 1
-          }
-
-          # Create ZIP using PowerShell
-          Compress-Archive -Path "roller-installer.exe", "ubi.exe" -DestinationPath "${{ matrix.artifact-name }}.zip"
-
-          # Verify ZIP was created and show contents
-          Get-ChildItem "${{ matrix.artifact-name }}.zip"
-
-          # List ZIP contents for verification
-          Add-Type -AssemblyName System.IO.Compression.FileSystem
-          $zip = [System.IO.Compression.ZipFile]::OpenRead("$pwd\${{ matrix.artifact-name }}.zip")
-          Write-Host "ZIP contents:"
-          $zip.Entries | ForEach-Object { Write-Host "  - $($_.Name)" }
-          $zip.Dispose()
-
-      - name: Create release ZIP (Unix)
-        if: runner.os != 'Windows'
+      - name: Verify binaries
         working-directory: dist
         shell: bash
         run: |
-          # Verify both binaries exist
+          # List contents of dist directory
           ls -la
 
-          if [[ ! -f "roller-installer" || ! -f "ubi" ]]; then
-            echo "Missing binaries!"
-            exit 1
+          # Verify both binaries exist
+          if [[ "${{ runner.os }}" == "Windows" ]]; then
+            if [[ ! -f "roller-installer.exe" || ! -f "ubi.exe" ]]; then
+              echo "Missing binaries!"
+              exit 1
+            fi
+            echo "✓ Found roller-installer.exe and ubi.exe"
+          else
+            if [[ ! -f "roller-installer" || ! -f "ubi" ]]; then
+              echo "Missing binaries!"
+              exit 1
+            fi
+            echo "✓ Found roller-installer and ubi"
           fi
 
-          zip ${{ matrix.artifact-name }}.zip roller-installer ubi
-
-          # Verify ZIP was created and list contents
-          ls -la ${{ matrix.artifact-name }}.zip
-          unzip -l ${{ matrix.artifact-name }}.zip
-
-      - name: Upload ZIP artifact
+      - name: Upload artifact (folder)
         uses: actions/upload-artifact@v4
         with:
           name: ${{ matrix.artifact-name }}
-          path: dist/${{ matrix.artifact-name }}.zip
+          path: dist/
           retention-days: 30
           if-no-files-found: error
           compression-level: 6
@@ -140,34 +117,44 @@ jobs:
       - name: Download all artifacts
         uses: actions/download-artifact@v4
         with:
-          path: binaries
+          path: artifacts
 
-      - name: List downloaded artifacts
+      - name: Create release ZIPs from artifacts
         run: |
-          find binaries -type f -exec ls -la {} \;
+          cd artifacts
+
+          # Each artifact is already in a folder, create a ZIP from each
+          for dir in */; do
+            name="${dir%/}"
+            echo "Creating ${name}.zip from ${dir} contents"
+            cd "$dir"
+            zip -r "../${name}.zip" *
+            cd ..
+            rm -rf "$dir"  # Remove the folder after zipping
+          done
+
+          # List created ZIPs
+          echo "=== Created ZIPs ==="
+          ls -la *.zip
 
       - name: Create checksums
         run: |
-          cd binaries
-          find . -type f -name "*.zip" -exec sha256sum {} \; > checksums.txt
-          cat checksums.txt
+          cd artifacts
+          # Create SHA256 checksums for all ZIP files
+          for zip in *.zip; do
+            sha256sum "$zip" >> checksums.txt
+          done
 
-      - name: Upload checksums
-        uses: actions/upload-artifact@v4
-        with:
-          name: checksums
-          path: binaries/checksums.txt
-          retention-days: 90
+          echo "=== Checksums ==="
+          cat checksums.txt
 
       - name: Upload release assets
         uses: softprops/action-gh-release@v2
         if: github.event_name == 'release' || startsWith(github.ref, 'refs/tags/')
         with:
           files: |
-            binaries/roller-installer-linux-x64/roller-installer-linux-x64.zip
-            binaries/roller-installer-macos-universal/roller-installer-macos-universal.zip
-            binaries/roller-installer-windows-x64/roller-installer-windows-x64.zip
-            binaries/checksums.txt
+            artifacts/*.zip
+            artifacts/checksums.txt
           fail_on_unmatched_files: true
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

@@ -164,12 +164,13 @@ installer/
 7. **Complete** - Launch option and shortcuts
 
 #### 2. TUI Interface (Retro)
-**Retro DOS-style installer:**
+**Retro DOS-style installer using Asciimatics:**
 - Blue background with yellow text (classic installer aesthetic)
 - ASCII art ROLLER logo
 - Keyboard navigation
 - Progress indicators using ASCII art
 - Error dialogs in classic style
+- **Framework**: Asciimatics - purpose-built for retro TUI aesthetics, specifically designed for DOS-style interfaces
 
 ```
 ╔══════════════════════════════════════════════════════════════╗
@@ -237,7 +238,35 @@ roller-installer --extract-only --source game.iso --output ./extracted
 - Dependency detection
 - Package manager integration hints
 
-#### 3. Asset Extraction Logic
+#### 3. TUI Framework Implementation
+**Asciimatics-based Retro Interface:**
+```python
+# Example DOS-style screen structure
+from asciimatics.widgets import Frame, Layout, Button, Label
+from asciimatics.scene import Scene
+from asciimatics.screen import Screen
+from asciimatics.effects import Print
+from asciimatics.renderers import FigletText
+
+class InstallerFrame(Frame):
+    def __init__(self, screen):
+        super().__init__(screen, screen.height, screen.width,
+                        palette="green", title="ROLLER v1.0 Installation Program")
+        # Blue background, yellow text styling
+        # ASCII art banner with FigletText
+        # Progress bars using ASCII characters
+        # Keyboard navigation (Enter/Esc/Arrow keys)
+```
+
+**Key Asciimatics Features for DOS Aesthetic:**
+- Built-in color palette support for classic blue/yellow schemes
+- ASCII art rendering with FigletText and custom banners
+- Form widgets for user input with retro styling
+- Progress bars and spinners using text characters
+- Screen transitions and effects for classic installer flow
+- Cross-platform keyboard handling
+
+#### 4. Asset Extraction Logic
 **ZIP Handling:**
 ```python
 def extract_fatdata_from_zip(zip_path, output_dir):
@@ -263,7 +292,7 @@ def extract_fatdata_from_iso(iso_path, output_dir):
 dependencies = [
     "requests>=2.31.0",        # GitHub API calls
     "tkinter",                 # GUI (built-in Python)
-    "textual>=0.38.0",        # TUI interface
+    "asciimatics>=1.15.0",    # TUI interface (retro DOS-style)
     "rich>=13.0.0",           # CLI formatting
     "py7zr>=0.20.0",          # 7Z archive support
     "rarfile>=4.0",           # RAR archive support

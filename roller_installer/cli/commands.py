@@ -9,12 +9,16 @@ from typing import Optional
 
 # Create the main app and console
 app = typer.Typer(
-    help="ROLLER Installer - Install and manage ROLLER (Fatal Racing decompilation)"
+    help="ROLLER Installer - Install and manage ROLLER (Fatal Racing decompilation)",
+    no_args_is_help=False,
 )
 console = Console()
 
+# Create CLI subcommand app
+cli_app = typer.Typer(help="Command-line interface for ROLLER installer")
 
-@app.command()
+
+@cli_app.command()
 def install(
     version: Optional[str] = typer.Option(
         None, "--version", "-v", help="Specific version to install (e.g., v1.2.3)"
@@ -50,7 +54,7 @@ def install(
     console.print("✅ Arguments parsed successfully!")
 
 
-@app.command()
+@cli_app.command()
 def check_updates(
     verbose: bool = typer.Option(False, "--verbose", help="Enable verbose output"),
 ):
@@ -69,7 +73,7 @@ def check_updates(
     console.print("✅ Arguments parsed successfully!")
 
 
-@app.command()
+@cli_app.command()
 def list_releases(
     limit: int = typer.Option(
         10, "--limit", "-l", help="Maximum number of releases to show"
@@ -92,7 +96,7 @@ def list_releases(
     console.print("✅ Arguments parsed successfully!")
 
 
-@app.command("self-update")
+@cli_app.command("self-update")
 def self_update(
     check_only: bool = typer.Option(
         False, "--check-only", help="Only check for updates, do not install"
@@ -115,8 +119,36 @@ def self_update(
     console.print("✅ Arguments parsed successfully!")
 
 
-def main():
-    """Main entry point for the CLI."""
+def gui():
+    """Launch the GUI installer (default behavior)."""
+    console.print("[bold green]🚀 Launching ROLLER Installer GUI...[/bold green]")
+    console.print("[yellow]⚠️  GUI not implemented yet - coming soon![/yellow]")
+
+
+@app.command()
+def tui():
+    """Launch the text-based user interface installer."""
+    console.print("[bold blue]🖥️  Launching ROLLER Installer TUI...[/bold blue]")
+    console.print("[yellow]⚠️  TUI not implemented yet - coming soon![/yellow]")
+
+
+# Add CLI subcommand to main app
+app.add_typer(cli_app, name="cli")
+
+
+@app.callback(invoke_without_command=True)
+def main(ctx: typer.Context):
+    """ROLLER Installer - Install and manage ROLLER (Fatal Racing decompilation).
+
+    By default, launches the GUI installer. Use subcommands for CLI or TUI interfaces.
+    """
+    if ctx.invoked_subcommand is None:
+        # Default behavior: launch GUI
+        gui()
+
+
+def cli_main():
+    """Entry point for the CLI that doesn't require context."""
     app()
 
 

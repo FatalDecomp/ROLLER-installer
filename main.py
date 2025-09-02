@@ -5,7 +5,7 @@ This file is used for building native binaries.
 """
 
 import sys
-from roller_installer.cli.commands import main
+from roller_installer.cli.commands import cli_main
 
 if __name__ == "__main__":
-    sys.exit(main())
+    sys.exit(cli_main())

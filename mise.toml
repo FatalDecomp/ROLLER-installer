@@ -5,6 +5,7 @@ act = "latest"
 usage = "latest"
 ruff = "latest"
 pre-commit = "latest"
+ubi = "latest"
 
 [tasks.installer]
 description = "Run the ROLLER installer CLI"

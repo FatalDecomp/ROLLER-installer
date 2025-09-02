@@ -54,7 +54,7 @@ installer/
 │   ├── core/                   # Core installer logic
 │   │   ├── __init__.py
 │   │   ├── installer.py       # Main installer class
-│   │   ├── github_client.py   # GitHub API integration
+│   │   ├── binary_downloader.py # ubi-based binary download
 │   │   ├── asset_extractor.py # Handle zip/iso extraction
 │   │   ├── config_generator.py # Generate ROLLER configs
 │   │   └── updater.py         # Update checker
@@ -96,10 +96,11 @@ installer/
 
 ### Core Functionality
 ✅ **Binary Download**
-- Download latest ROLLER binary from GitHub releases
+- Download latest ROLLER binary from GitHub releases using **ubi** (https://github.com/houseabsolute/ubi)
+- **Simplified approach**: ubi handles GitHub API, platform detection, and binary selection automatically
 - Support for multiple architectures (Windows x64, Linux x64, macOS arm64/x64)
-- Verify checksums/signatures if provided
-- Resume interrupted downloads
+- Verify checksums/signatures if provided by ubi
+- No need for custom GitHub API client implementation
 
 ✅ **Asset Detection & Extraction**
 - **Folder**: Direct FATDATA directory selection
@@ -214,10 +215,21 @@ roller-installer --extract-only --source game.iso --output ./extracted
 - UPX compression for smaller size
 - Code signing on Windows/macOS
 
-**Build Targets:**
-- `roller-installer-windows-x64.exe`
-- `roller-installer-linux-x64`
-- `roller-installer-macos-universal`
+**Build Targets & Distribution:**
+- `roller-installer-windows-x64.zip` containing:
+  - `roller-installer.exe`
+  - `ubi.exe`
+- `roller-installer-linux-x64.zip` containing:
+  - `roller-installer`
+  - `ubi`
+- `roller-installer-macos-universal.zip` containing:
+  - `roller-installer`
+  - `ubi`
+
+**Distribution Strategy:**
+- Assume `ubi` is available alongside the installer binary
+- No need to install or manage `ubi` as a separate dependency
+- Installer can reference `./ubi` or `ubi.exe` in the same directory
 
 #### 2. Cross-Platform Considerations
 **Windows:**
@@ -266,7 +278,53 @@ class InstallerFrame(Frame):
 - Screen transitions and effects for classic installer flow
 - Cross-platform keyboard handling
 
-#### 4. Asset Extraction Logic
+#### 4. Binary Download with ubi
+**ubi-based GitHub Release Download:**
+```python
+import subprocess
+import os
+from pathlib import Path
+
+def download_roller_binary(install_dir: Path, version: str = "latest"):
+    """Download ROLLER binary using ubi with flexible path resolution."""
+    from roller_installer.utils.ubi_resolver import get_ubi_command
+
+    # Resolve ubi binary with fallback strategy
+    ubi_command = get_ubi_command()  # Handles path resolution and error handling
+
+    # ubi automatically detects platform and downloads correct binary
+    cmd = [
+        ubi_command,
+        "--project", "ROLLER_REPO_HERE",  # Replace with actual ROLLER repo
+        "--in", str(install_dir),
+        "--exe", "roller"  # or appropriate executable name
+    ]
+
+    if version != "latest":
+        cmd.extend(["--tag", version])
+
+    # Run ubi command with progress tracking
+    result = subprocess.run(cmd, capture_output=True, text=True)
+
+    if result.returncode == 0:
+        return install_dir / "roller"  # Path to downloaded binary
+    else:
+        raise RuntimeError(f"Failed to download ROLLER: {result.stderr}")
+```
+
+**Flexible ubi Resolution Strategy:**
+1. **Local bundled ubi**: Check same directory as installer (preferred)
+2. **Project root ubi**: Check project root directory
+3. **System PATH ubi**: Fall back to system-installed ubi
+4. **Error handling**: Clear error message if ubi not found anywhere
+
+**Benefits of this approach:**
+- **Bundled releases**: Works out-of-the-box with downloaded ZIP
+- **Development flexibility**: Can use system ubi during development
+- **Fallback reliability**: Multiple resolution paths reduce failure points
+- **Clear error messages**: Users know exactly how to fix missing ubi
+
+#### 5. Asset Extraction Logic
 **ZIP Handling:**
 ```python
 def extract_fatdata_from_zip(zip_path, output_dir):
@@ -290,7 +348,7 @@ def extract_fatdata_from_iso(iso_path, output_dir):
 ### Runtime Dependencies
 ```toml
 dependencies = [
-    "requests>=2.31.0",        # GitHub API calls
+    # No requests needed - ubi handles GitHub downloads
     "tkinter",                 # GUI (built-in Python)
     "asciimatics>=1.15.0",    # TUI interface (retro DOS-style)
     "rich>=13.0.0",           # CLI formatting

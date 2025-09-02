@@ -4,16 +4,17 @@
 import subprocess
 import sys
 from pathlib import Path
+from icons import ICONS
 
 
 def run_command(cmd, description=None):
     """Run a command and handle errors."""
     if description:
-        print(f"🔨 {description}...")
+        print(f"{ICONS['hammer']} {description}...")
 
     result = subprocess.run(cmd, shell=True)
     if result.returncode != 0:
-        print(f"❌ Command failed: {cmd}")
+        print(f"{ICONS['error']} Command failed: {cmd}")
         sys.exit(result.returncode)
     return result
 
@@ -22,7 +23,7 @@ def main():
     """Build the installer with optimizations."""
 
     # Build with PyInstaller
-    print("📦 Building with PyInstaller...")
+    print(f"{ICONS['build']} Building with PyInstaller...")
     pyinstaller_cmd = """
     poetry run pyinstaller \
       --onefile \
@@ -52,17 +53,17 @@ def main():
         binary_path = Path("dist/roller-installer")
 
     if not binary_path.exists():
-        print(f"❌ Binary not found at {binary_path}")
+        print(f"{ICONS['error']} Binary not found at {binary_path}")
         sys.exit(1)
 
     # Get size before compression
     size_before = binary_path.stat().st_size / (1024 * 1024)
-    print(f"📏 Size before UPX: {size_before:.2f} MB")
+    print(f"{ICONS['size']} Size before UPX: {size_before:.2f} MB")
 
     # Try to compress with UPX if available
     upx_result = subprocess.run(["which", "upx"], capture_output=True)
     if upx_result.returncode == 0:
-        print("🗜️  Compressing with UPX...")
+        print(f"{ICONS['compress']} Compressing with UPX...")
         upx_cmd = f"upx --best --lzma {binary_path}"
         try:
             run_command(upx_cmd, "Applying UPX compression")
@@ -70,18 +71,20 @@ def main():
             # Show final size with compression
             size_after = binary_path.stat().st_size / (1024 * 1024)
             reduction = ((size_before - size_after) / size_before) * 100
-            print("✅ Build complete!")
-            print(f"📏 Final size: {size_after:.2f} MB (reduced by {reduction:.1f}%)")
+            print(f"{ICONS['success']} Build complete!")
+            print(
+                f"{ICONS['size']} Final size: {size_after:.2f} MB (reduced by {reduction:.1f}%)"
+            )
         except Exception as e:
-            print(f"⚠️  UPX compression failed: {e}")
-            print("✅ Build complete!")
-            print(f"📏 Final size: {size_before:.2f} MB (uncompressed)")
+            print(f"{ICONS['warning']} UPX compression failed: {e}")
+            print(f"{ICONS['success']} Build complete!")
+            print(f"{ICONS['size']} Final size: {size_before:.2f} MB (uncompressed)")
     else:
-        print("ℹ️  UPX not found, skipping compression")
+        print(f"{ICONS['info']} UPX not found, skipping compression")
         print("✅ Build complete!")
         print(f"📏 Final size: {size_before:.2f} MB (uncompressed)")
 
-    print(f"📂 Binary location: {binary_path}")
+    print(f"{ICONS['folder']} Binary location: {binary_path}")
 
 
 if __name__ == "__main__":

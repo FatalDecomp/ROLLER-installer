@@ -3,12 +3,13 @@
 
 import subprocess
 import sys
+from icons import ICONS
 
 
 def main():
     """Build with verbose output."""
 
-    print("📦 Building with verbose output...")
+    print(f"{ICONS['build']} Building with verbose output...")
 
     # Build command with verbose logging
     cmd = [
@@ -53,14 +54,14 @@ def main():
         process.wait()
 
         if process.returncode != 0:
-            print(f"❌ Build failed with exit code {process.returncode}")
+            print(f"{ICONS['error']} Build failed with exit code {process.returncode}")
             sys.exit(process.returncode)
 
     # Check for UPX
     upx_check = subprocess.run(["which", "upx"], capture_output=True, text=True)
     if upx_check.returncode == 0:
         upx_path = upx_check.stdout.strip()
-        print(f"\n✅ UPX found at: {upx_path}")
+        print(f"\n{ICONS['success']} UPX found at: {upx_path}")
 
         version_result = subprocess.run(
             ["upx", "--version"], capture_output=True, text=True
@@ -69,10 +70,10 @@ def main():
             version_line = version_result.stdout.split("\n")[0]
             print(f"   Version: {version_line}")
     else:
-        print("\n⚠️  UPX not found")
+        print(f"\n{ICONS['warning']} UPX not found")
 
-    print("\n📄 Build log saved to build.log")
-    print("💡 Run 'mise run build:analyze' to analyze the build")
+    print(f"\n{ICONS['file']} Build log saved to build.log")
+    print(f"{ICONS['info']} Run 'mise run build:analyze' to analyze the build")
 
 
 if __name__ == "__main__":

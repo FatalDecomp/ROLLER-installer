@@ -8,6 +8,7 @@ import sys
 from pathlib import Path
 from collections import Counter
 from typing import List, Tuple
+from icons import ICONS
 
 
 def read_build_log() -> List[str]:
@@ -15,7 +16,7 @@ def read_build_log() -> List[str]:
     log_file = Path("build.log")
     if not log_file.exists():
         print(
-            "❌ No build.log found. Run 'mise run build:verbose' first to generate a build log."
+            f"{ICONS['error']} No build.log found. Run 'mise run build:verbose' first to generate a build log."
         )
         sys.exit(1)
 
@@ -82,7 +83,7 @@ def get_binary_size() -> str:
 
 def main():
     """Main analysis function."""
-    print("🔍 Analyzing PyInstaller Build Log\n")
+    print(f"{ICONS['search']} Analyzing PyInstaller Build Log\n")
 
     lines = read_build_log()
 
@@ -150,24 +151,24 @@ def main():
     ]
     found_large = [pkg for pkg in large_packages if any(pkg in m for m in modules)]
     if found_large:
-        print("  ⚠️  Large packages detected that might be excludable:")
+        print(f"  {ICONS['warning']} Large packages detected that might be excludable:")
         for pkg in found_large:
             print(f"     - {pkg}")
     else:
-        print("  ✅ No obvious large packages detected")
+        print(f"  {ICONS['success']} No obvious large packages detected")
 
     # Check for test modules
     test_modules = [m for m in modules if "test" in m.lower() or "pytest" in m.lower()]
     if test_modules:
         print(
-            f"  ⚠️  Found {len(test_modules)} test-related modules that could be excluded"
+            f"  {ICONS['warning']} Found {len(test_modules)} test-related modules that could be excluded"
         )
         for module in test_modules[:3]:
             print(f"     - {module}")
     else:
-        print("  ✅ No test modules detected")
+        print(f"  {ICONS['success']} No test modules detected")
 
-    print("\n✨ Analysis complete!")
+    print(f"\n{ICONS['sparkles']} Analysis complete!")
 
 
 if __name__ == "__main__":

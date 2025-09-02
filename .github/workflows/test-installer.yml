@@ -3,7 +3,7 @@ name: Test ROLLER Installer
 on:
   push:
   pull_request:
-    branches: [master]
+    branches: [main]
   workflow_dispatch:
 
 jobs:

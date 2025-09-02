@@ -92,8 +92,15 @@ jobs:
           # Create ZIP using PowerShell
           Compress-Archive -Path "roller-installer.exe", "ubi.exe" -DestinationPath "${{ matrix.artifact-name }}.zip"
 
-          # Verify ZIP was created
+          # Verify ZIP was created and show contents
           Get-ChildItem "${{ matrix.artifact-name }}.zip"
+
+          # List ZIP contents for verification
+          Add-Type -AssemblyName System.IO.Compression.FileSystem
+          $zip = [System.IO.Compression.ZipFile]::OpenRead("$pwd\${{ matrix.artifact-name }}.zip")
+          Write-Host "ZIP contents:"
+          $zip.Entries | ForEach-Object { Write-Host "  - $($_.Name)" }
+          $zip.Dispose()
 
       - name: Create release ZIP (Unix)
         if: runner.os != 'Windows'

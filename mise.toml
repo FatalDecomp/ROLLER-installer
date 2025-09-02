@@ -16,17 +16,9 @@ run = "poetry run python -m roller_installer"
 description = "Install poetry dependencies for installer"
 run = "poetry install --no-interaction --no-ansi"
 
-[tasks.build]
-description = "Build native ROLLER installer binary"
-run = "poetry run pyinstaller --clean pyinstaller.spec"
-
 [tasks."build:simple"]
 description = "Build native ROLLER installer binary (simple, no optimizations)"
 run = "poetry run pyinstaller --onefile --name roller-installer --clean main.py"
-
-[tasks."build:verbose"]
-description = "Build with verbose output for analysis"
-run = "poetry run pyinstaller --clean --log-level DEBUG pyinstaller.spec 2>&1 | tee build.log"
 
 [tasks.test-github-workflows]
 description = "Test GitHub Actions locally with act"

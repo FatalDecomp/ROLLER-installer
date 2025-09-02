@@ -12,11 +12,27 @@ def run_command(cmd, description=None):
     if description:
         print(f"{ICONS['hammer']} {description}...")
 
-    result = subprocess.run(cmd, shell=True)
-    if result.returncode != 0:
-        print(f"{ICONS['error']} Command failed: {cmd}")
-        sys.exit(result.returncode)
-    return result
+    # Stream output in real-time
+    process = subprocess.Popen(
+        cmd,
+        shell=True,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.STDOUT,
+        text=True,
+        bufsize=1,
+    )
+
+    # Print output as it comes
+    for line in process.stdout:
+        print(line, end="")
+
+    process.wait()
+
+    if process.returncode != 0:
+        print(f"{ICONS['error']} Command failed with exit code {process.returncode}")
+        sys.exit(process.returncode)
+
+    return process
 
 
 def main():
@@ -81,8 +97,8 @@ def main():
             print(f"{ICONS['size']} Final size: {size_before:.2f} MB (uncompressed)")
     else:
         print(f"{ICONS['info']} UPX not found, skipping compression")
-        print("✅ Build complete!")
-        print(f"📏 Final size: {size_before:.2f} MB (uncompressed)")
+        print(f"{ICONS['success']} Build complete!")
+        print(f"{ICONS['size']} Final size: {size_before:.2f} MB (uncompressed)")
 
     print(f"{ICONS['folder']} Binary location: {binary_path}")
 

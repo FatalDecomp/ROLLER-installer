@@ -2,6 +2,8 @@ name: Build ROLLER Installer
 
 on:
   push:
+    tags:
+      - 'v*'
   pull_request:
     branches: [main]
   release:
@@ -19,21 +21,19 @@ jobs:
           - os: ubuntu-latest
             os-name: Linux
             binary-suffix: ""
+            ubi-suffix: ""
             artifact-name: roller-installer-linux-x64
             cache-key: linux
-          - os: macos-13
-            os-name: macOS-Intel
+          - os: macos-latest
+            os-name: macOS
             binary-suffix: ""
-            artifact-name: roller-installer-macos-intel
-            cache-key: macos-intel
-          - os: macos-14
-            os-name: macOS-ARM64
-            binary-suffix: ""
-            artifact-name: roller-installer-macos-arm64
-            cache-key: macos-arm64
+            ubi-suffix: ""
+            artifact-name: roller-installer-macos-universal
+            cache-key: macos
           - os: windows-2022
             os-name: Windows
             binary-suffix: ".exe"
+            ubi-suffix: ".exe"
             artifact-name: roller-installer-windows-x64
             cache-key: windows
 
@@ -68,31 +68,56 @@ jobs:
             ./roller-installer --help || echo "Binary test completed with exit code $?"
           fi
 
-      - name: Rename binary for artifact
+      - name: Download ubi binary
         working-directory: dist
         shell: bash
         run: |
           if [[ "${{ runner.os }}" == "Windows" ]]; then
-            mv roller-installer.exe ${{ matrix.artifact-name }}.exe
+            powershell -exec bypass -c "Invoke-WebRequest -URI 'https://raw.githubusercontent.com/houseabsolute/ubi/master/bootstrap/bootstrap-ubi.ps1' -UseBasicParsing | Invoke-Expression"
           else
-            mv roller-installer ${{ matrix.artifact-name }}
+            curl --silent --location https://raw.githubusercontent.com/houseabsolute/ubi/master/bootstrap/bootstrap-ubi.sh | TARGET=$(pwd) sh
           fi
 
-      - name: Upload binary artifact
+      - name: Create release ZIP
+        working-directory: dist
+        shell: bash
+        run: |
+          # Verify both binaries exist
+          ls -la
+
+          if [[ "${{ runner.os }}" == "Windows" ]]; then
+            if [[ ! -f "roller-installer.exe" || ! -f "ubi.exe" ]]; then
+              echo "Missing binaries!"
+              exit 1
+            fi
+            zip ${{ matrix.artifact-name }}.zip roller-installer.exe ubi.exe
+          else
+            if [[ ! -f "roller-installer" || ! -f "ubi" ]]; then
+              echo "Missing binaries!"
+              exit 1
+            fi
+            zip ${{ matrix.artifact-name }}.zip roller-installer ubi
+          fi
+
+          # Verify ZIP was created and list contents
+          ls -la ${{ matrix.artifact-name }}.zip
+          unzip -l ${{ matrix.artifact-name }}.zip
+
+      - name: Upload ZIP artifact
         uses: actions/upload-artifact@v4
         with:
           name: ${{ matrix.artifact-name }}
-          path: dist/${{ matrix.artifact-name }}${{ matrix.binary-suffix }}
+          path: dist/${{ matrix.artifact-name }}.zip
           retention-days: 30
           if-no-files-found: error
-          compression-level: 9
+          compression-level: 6
 
   # Collect all artifacts for release
   collect-artifacts:
     name: Collect Release Artifacts
     runs-on: ubuntu-latest
     needs: build
-    if: github.event_name == 'release'
+    if: github.event_name == 'release' || startsWith(github.ref, 'refs/tags/')
     steps:
       - name: Download all artifacts
         uses: actions/download-artifact@v4
@@ -106,7 +131,7 @@ jobs:
       - name: Create checksums
         run: |
           cd binaries
-          find . -type f -name "roller-installer*" -exec sha256sum {} \; > checksums.txt
+          find . -type f -name "*.zip" -exec sha256sum {} \; > checksums.txt
           cat checksums.txt
 
       - name: Upload checksums
@@ -118,13 +143,12 @@ jobs:
 
       - name: Upload release assets
         uses: softprops/action-gh-release@v2
-        if: github.event_name == 'release'
+        if: github.event_name == 'release' || startsWith(github.ref, 'refs/tags/')
         with:
           files: |
-            binaries/roller-installer-linux-x64/roller-installer-linux-x64
-            binaries/roller-installer-macos-intel/roller-installer-macos-intel
-            binaries/roller-installer-macos-arm64/roller-installer-macos-arm64
-            binaries/roller-installer-windows-x64/roller-installer-windows-x64.exe
+            binaries/roller-installer-linux-x64/roller-installer-linux-x64.zip
+            binaries/roller-installer-macos-universal/roller-installer-macos-universal.zip
+            binaries/roller-installer-windows-x64/roller-installer-windows-x64.zip
             binaries/checksums.txt
           fail_on_unmatched_files: true
         env:
@@ -153,11 +177,12 @@ jobs:
         run: |
           echo "## Build Summary" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
-          echo "| Platform | Status |" >> $GITHUB_STEP_SUMMARY
-          echo "|----------|--------|" >> $GITHUB_STEP_SUMMARY
-          echo "| Linux x64 | ✅ Success |" >> $GITHUB_STEP_SUMMARY
-          echo "| macOS Intel | ✅ Success |" >> $GITHUB_STEP_SUMMARY
-          echo "| macOS ARM64 | ✅ Success |" >> $GITHUB_STEP_SUMMARY
-          echo "| Windows x64 | ✅ Success |" >> $GITHUB_STEP_SUMMARY
+          echo "| Platform | Status | ZIP Contents |" >> $GITHUB_STEP_SUMMARY
+          echo "|----------|--------|--------------|" >> $GITHUB_STEP_SUMMARY
+          echo "| Linux x64 | ✅ Success | roller-installer + ubi |" >> $GITHUB_STEP_SUMMARY
+          echo "| macOS Universal | ✅ Success | roller-installer + ubi |" >> $GITHUB_STEP_SUMMARY
+          echo "| Windows x64 | ✅ Success | roller-installer.exe + ubi.exe |" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
-          echo "All installer binaries built successfully!" >> $GITHUB_STEP_SUMMARY
+          echo "All installer ZIP packages built successfully!" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "Each ZIP contains both the roller-installer binary and the ubi binary for self-contained distribution." >> $GITHUB_STEP_SUMMARY

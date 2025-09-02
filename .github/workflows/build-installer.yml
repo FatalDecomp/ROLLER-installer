@@ -52,9 +52,21 @@ jobs:
         run: |
           mise run deps
 
-      - name: Build installer binary
+      - name: Build installer binary with optimizations
         run: |
           mise run build
+
+      - name: Show binary size
+        working-directory: dist
+        shell: bash
+        run: |
+          if [[ "${{ runner.os }}" == "Windows" ]]; then
+            ls -lh roller-installer.exe
+            echo "Size: $(du -h roller-installer.exe | cut -f1)"
+          else
+            ls -lh roller-installer
+            echo "Size: $(du -h roller-installer | cut -f1)"
+          fi
 
       - name: Test binary execution
         working-directory: dist

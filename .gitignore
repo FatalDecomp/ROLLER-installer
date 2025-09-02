@@ -21,3 +21,4 @@ poetry.lock
 .DS_Store
 Thumbs.db
 .claude/settings.local.json
+build.log

@@ -46,13 +46,9 @@ jobs:
       - name: Setup mise
         uses: jdx/mise-action@v2
         with:
-          install: false
+          install: true
           cache: true
           experimental: true
-
-      - name: Install tools required for CI
-        run: |
-          mise run install:ci
 
       - name: Install Poetry dependencies
         run: |

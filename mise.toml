@@ -21,7 +21,3 @@ run = "poetry run pyinstaller --onefile --name roller-installer --clean main.py"
 [tasks.test-github-workflows]
 description = "Test GitHub Actions locally with act"
 run = "act"
-
-[tasks."install:ci"]
-description = "Install tools required for CI"
-run = "mise install poetry python ruff"

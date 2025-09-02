@@ -17,13 +17,12 @@ jobs:
       - name: Setup mise
         uses: jdx/mise-action@v2
         with:
-          install: false
+          install: true
           cache: true
           experimental: true
 
       - name: Install dependencies
         run: |
-          mise run install:ci
           mise run deps
 
       - name: Install lint dependencies

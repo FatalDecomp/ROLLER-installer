@@ -8,16 +8,26 @@ from rich.table import Table
 from typing import Optional
 
 # Create the main app and console
-app = typer.Typer(help="ROLLER Installer - Install and manage ROLLER (Fatal Racing decompilation)")
+app = typer.Typer(
+    help="ROLLER Installer - Install and manage ROLLER (Fatal Racing decompilation)"
+)
 console = Console()
 
 
 @app.command()
 def install(
-    version: Optional[str] = typer.Option(None, "--version", "-v", help="Specific version to install (e.g., v1.2.3)"),
-    install_dir: Optional[str] = typer.Option(None, "--install-dir", help="Custom installation directory"),
-    force: bool = typer.Option(False, "--force", help="Force reinstall even if already installed"),
-    no_shortcuts: bool = typer.Option(False, "--no-shortcuts", help="Skip creating desktop shortcuts"),
+    version: Optional[str] = typer.Option(
+        None, "--version", "-v", help="Specific version to install (e.g., v1.2.3)"
+    ),
+    install_dir: Optional[str] = typer.Option(
+        None, "--install-dir", help="Custom installation directory"
+    ),
+    force: bool = typer.Option(
+        False, "--force", help="Force reinstall even if already installed"
+    ),
+    no_shortcuts: bool = typer.Option(
+        False, "--no-shortcuts", help="Skip creating desktop shortcuts"
+    ),
     verbose: bool = typer.Option(False, "--verbose", help="Enable verbose output"),
 ):
     """Install ROLLER binary from GitHub releases."""
@@ -61,7 +71,9 @@ def check_updates(
 
 @app.command()
 def list_releases(
-    limit: int = typer.Option(10, "--limit", "-l", help="Maximum number of releases to show"),
+    limit: int = typer.Option(
+        10, "--limit", "-l", help="Maximum number of releases to show"
+    ),
     verbose: bool = typer.Option(False, "--verbose", help="Enable verbose output"),
 ):
     """List available ROLLER releases."""
@@ -82,7 +94,9 @@ def list_releases(
 
 @app.command("self-update")
 def self_update(
-    check_only: bool = typer.Option(False, "--check-only", help="Only check for updates, do not install"),
+    check_only: bool = typer.Option(
+        False, "--check-only", help="Only check for updates, do not install"
+    ),
     verbose: bool = typer.Option(False, "--verbose", help="Enable verbose output"),
 ):
     """Update the installer itself to the latest version."""

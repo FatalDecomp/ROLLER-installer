@@ -35,42 +35,102 @@ def install(
     verbose: bool = typer.Option(False, "--verbose", help="Enable verbose output"),
 ):
     """Install ROLLER binary from GitHub releases."""
-    console.print("[bold blue]ROLLER Installer - Install Command[/bold blue]")
+    from pathlib import Path
+    from roller_installer.core.github_client import RollerGitHubClient
+    from roller_installer.core.ubi_downloader import UbiDownloader
+    
+    console.print("[bold blue]ROLLER Installer[/bold blue]")
     console.print()
-
-    # Create table to display parsed arguments
-    table = Table(title="Parsed Arguments")
-    table.add_column("Argument", style="cyan")
-    table.add_column("Value", style="magenta")
-
-    table.add_row("version", str(version))
-    table.add_row("install_dir", str(install_dir))
-    table.add_row("force", str(force))
-    table.add_row("no_shortcuts", str(no_shortcuts))
-    table.add_row("verbose", str(verbose))
-
-    console.print(table)
-    console.print()
-    console.print("✅ Arguments parsed successfully!")
+    
+    # Set up installation directory - default to current directory
+    install_path = Path(install_dir) if install_dir else Path.cwd()
+    version_file = install_path / ".roller-version"
+    
+    try:
+        # Get the release tag to install
+        if not version:
+            console.print("Checking for latest pre-release...")
+            github_client = RollerGitHubClient()
+            version = github_client.get_latest_prerelease_tag()
+            if not version:
+                console.print("[red]No pre-releases found[/red]")
+                raise typer.Exit(1)
+        
+        # Check if already installed with same version
+        if version_file.exists() and not force:
+            current_version = version_file.read_text().strip()
+            if current_version == version:
+                console.print(f"[green]ROLLER {version} is already installed[/green]")
+                console.print("Use --force to reinstall")
+                return
+        
+        console.print(f"Installing ROLLER {version} to {install_path}")
+        
+        # Download using ubi
+        downloader = UbiDownloader()
+        binary_path = downloader.download(
+            install_dir=install_path,
+            tag=version,
+            exe_name="roller",
+            progress_callback=lambda msg: console.print(f"  {msg}")
+        )
+        
+        # Save version info for update checking
+        version_file = install_path / ".roller-version"
+        version_file.write_text(version)
+        
+        console.print(f"[green]✅ ROLLER {version} installed successfully![/green]")
+        console.print(f"Binary location: {binary_path}")
+        
+    except Exception as e:
+        console.print(f"[red]Installation failed: {e}[/red]")
+        raise typer.Exit(1)
 
 
 @cli_app.command()
 def check_updates(
+    install_dir: Optional[str] = typer.Option(
+        None, "--install-dir", help="Installation directory to check"
+    ),
     verbose: bool = typer.Option(False, "--verbose", help="Enable verbose output"),
 ):
     """Check for ROLLER updates."""
-    console.print("[bold blue]ROLLER Installer - Check Updates Command[/bold blue]")
+    from pathlib import Path
+    from roller_installer.core.github_client import RollerGitHubClient
+    
+    console.print("[bold blue]Checking for ROLLER Updates[/bold blue]")
     console.print()
-
-    table = Table(title="Parsed Arguments")
-    table.add_column("Argument", style="cyan")
-    table.add_column("Value", style="magenta")
-
-    table.add_row("verbose", str(verbose))
-
-    console.print(table)
-    console.print()
-    console.print("✅ Arguments parsed successfully!")
+    
+    # Find installation directory
+    check_path = Path(install_dir) if install_dir else Path.cwd()
+    version_file = check_path / ".roller-version"
+    
+    if not version_file.exists():
+        console.print("[yellow]No ROLLER installation found in this directory[/yellow]")
+        console.print("Run 'roller-installer cli install' first")
+        raise typer.Exit(1)
+    
+    try:
+        current_version = version_file.read_text().strip()
+        console.print(f"Current version: {current_version}")
+        
+        # Check for latest
+        github_client = RollerGitHubClient()
+        latest_version = github_client.get_latest_prerelease_tag()
+        
+        if not latest_version:
+            console.print("[yellow]Could not check for updates[/yellow]")
+            raise typer.Exit(1)
+        
+        if latest_version == current_version:
+            console.print(f"[green]✅ You're up to date![/green]")
+        else:
+            console.print(f"[yellow]Update available: {latest_version}[/yellow]")
+            console.print(f"Run 'roller-installer cli install' to update")
+    
+    except Exception as e:
+        console.print(f"[red]Failed to check updates: {e}[/red]")
+        raise typer.Exit(1)
 
 
 @cli_app.command()
@@ -81,19 +141,37 @@ def list_releases(
     verbose: bool = typer.Option(False, "--verbose", help="Enable verbose output"),
 ):
     """List available ROLLER releases."""
-    console.print("[bold blue]ROLLER Installer - List Releases Command[/bold blue]")
+    from roller_installer.core.github_client import RollerGitHubClient
+    
+    console.print("[bold blue]Available ROLLER Releases[/bold blue]")
     console.print()
-
-    table = Table(title="Parsed Arguments")
-    table.add_column("Argument", style="cyan")
-    table.add_column("Value", style="magenta")
-
-    table.add_row("limit", str(limit))
-    table.add_row("verbose", str(verbose))
-
-    console.print(table)
-    console.print()
-    console.print("✅ Arguments parsed successfully!")
+    
+    try:
+        github_client = RollerGitHubClient()
+        releases = github_client.list_releases(limit=limit, include_prerelease=True)
+        
+        if not releases:
+            console.print("[yellow]No releases found[/yellow]")
+            return
+        
+        table = Table(title=f"Latest {len(releases)} Releases")
+        table.add_column("Tag", style="cyan")
+        table.add_column("Type", style="magenta")
+        table.add_column("Published", style="green")
+        
+        for release in releases:
+            release_type = "Pre-release" if release['prerelease'] else "Stable"
+            table.add_row(
+                release['tag_name'],
+                release_type,
+                str(release['published_at'])
+            )
+        
+        console.print(table)
+        
+    except Exception as e:
+        console.print(f"[red]Failed to list releases: {e}[/red]")
+        raise typer.Exit(1)
 
 
 @cli_app.command("self-update")

@@ -23,3 +23,5 @@ Thumbs.db
 .claude/settings.local.json
 build.log
 *.spec
+roller
+.roller-version

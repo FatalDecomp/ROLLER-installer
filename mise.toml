@@ -19,23 +19,3 @@ run = "poetry install --no-interaction --no-ansi"
 [tasks.build]
 description = "Build native ROLLER installer binary with optimizations"
 run = "poetry run python scripts/build.py"
-
-[tasks."build:simple"]
-description = "Build native ROLLER installer binary (simple, no optimizations)"
-run = "poetry run pyinstaller --onefile --name roller-installer --clean main.py"
-
-[tasks."build:no-upx"]
-description = "Build optimized binary without UPX compression"
-run = "poetry run pyinstaller --onefile --name roller-installer --clean --strip --optimize 2 main.py"
-
-[tasks."build:verbose"]
-description = "Build with verbose output for analysis"
-run = "poetry run python scripts/build-verbose.py"
-
-[tasks."build:analyze"]
-description = "Analyze what's included in the binary from build log"
-run = "poetry run python scripts/build-analyze.py"
-
-[tasks.test-github-workflows]
-description = "Test GitHub Actions locally with act"
-run = "act"

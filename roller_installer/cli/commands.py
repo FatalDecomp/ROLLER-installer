@@ -38,14 +38,14 @@ def install(
     from pathlib import Path
     from roller_installer.core.github_client import RollerGitHubClient
     from roller_installer.core.ubi_downloader import UbiDownloader
-    
+
     console.print("[bold blue]ROLLER Installer[/bold blue]")
     console.print()
-    
+
     # Set up installation directory - default to current directory
     install_path = Path(install_dir) if install_dir else Path.cwd()
     version_file = install_path / ".roller-version"
-    
+
     try:
         # Get the release tag to install
         if not version:
@@ -55,7 +55,7 @@ def install(
             if not version:
                 console.print("[red]No pre-releases found[/red]")
                 raise typer.Exit(1)
-        
+
         # Check if already installed with same version
         if version_file.exists() and not force:
             current_version = version_file.read_text().strip()
@@ -63,25 +63,25 @@ def install(
                 console.print(f"[green]ROLLER {version} is already installed[/green]")
                 console.print("Use --force to reinstall")
                 return
-        
+
         console.print(f"Installing ROLLER {version} to {install_path}")
-        
+
         # Download using ubi
         downloader = UbiDownloader()
         binary_path = downloader.download(
             install_dir=install_path,
             tag=version,
             exe_name="roller",
-            progress_callback=lambda msg: console.print(f"  {msg}")
+            progress_callback=lambda msg: console.print(f"  {msg}"),
         )
-        
+
         # Save version info for update checking
         version_file = install_path / ".roller-version"
         version_file.write_text(version)
-        
+
         console.print(f"[green]✅ ROLLER {version} installed successfully![/green]")
         console.print(f"Binary location: {binary_path}")
-        
+
     except Exception as e:
         console.print(f"[red]Installation failed: {e}[/red]")
         raise typer.Exit(1)
@@ -97,37 +97,37 @@ def check_updates(
     """Check for ROLLER updates."""
     from pathlib import Path
     from roller_installer.core.github_client import RollerGitHubClient
-    
+
     console.print("[bold blue]Checking for ROLLER Updates[/bold blue]")
     console.print()
-    
+
     # Find installation directory
     check_path = Path(install_dir) if install_dir else Path.cwd()
     version_file = check_path / ".roller-version"
-    
+
     if not version_file.exists():
         console.print("[yellow]No ROLLER installation found in this directory[/yellow]")
         console.print("Run 'roller-installer cli install' first")
         raise typer.Exit(1)
-    
+
     try:
         current_version = version_file.read_text().strip()
         console.print(f"Current version: {current_version}")
-        
+
         # Check for latest
         github_client = RollerGitHubClient()
         latest_version = github_client.get_latest_prerelease_tag()
-        
+
         if not latest_version:
             console.print("[yellow]Could not check for updates[/yellow]")
             raise typer.Exit(1)
-        
+
         if latest_version == current_version:
-            console.print(f"[green]✅ You're up to date![/green]")
+            console.print("[green]✅ You're up to date![/green]")
         else:
             console.print(f"[yellow]Update available: {latest_version}[/yellow]")
-            console.print(f"Run 'roller-installer cli install' to update")
-    
+            console.print("Run 'roller-installer cli install' to update")
+
     except Exception as e:
         console.print(f"[red]Failed to check updates: {e}[/red]")
         raise typer.Exit(1)
@@ -142,35 +142,94 @@ def list_releases(
 ):
     """List available ROLLER releases."""
     from roller_installer.core.github_client import RollerGitHubClient
-    
+
     console.print("[bold blue]Available ROLLER Releases[/bold blue]")
     console.print()
-    
+
     try:
         github_client = RollerGitHubClient()
         releases = github_client.list_releases(limit=limit, include_prerelease=True)
-        
+
         if not releases:
             console.print("[yellow]No releases found[/yellow]")
             return
-        
+
         table = Table(title=f"Latest {len(releases)} Releases")
         table.add_column("Tag", style="cyan")
         table.add_column("Type", style="magenta")
         table.add_column("Published", style="green")
-        
+
         for release in releases:
-            release_type = "Pre-release" if release['prerelease'] else "Stable"
+            release_type = "Pre-release" if release["prerelease"] else "Stable"
             table.add_row(
-                release['tag_name'],
-                release_type,
-                str(release['published_at'])
+                release["tag_name"], release_type, str(release["published_at"])
             )
-        
+
         console.print(table)
-        
+
     except Exception as e:
         console.print(f"[red]Failed to list releases: {e}[/red]")
+        raise typer.Exit(1)
+
+
+@cli_app.command()
+def extract_assets(
+    source: str = typer.Argument(
+        ..., help="Path to ZIP or ISO file containing FATDATA"
+    ),
+    output_dir: Optional[str] = typer.Option(
+        None, "--output", "-o", help="Output directory (default: current directory)"
+    ),
+    verbose: bool = typer.Option(False, "--verbose", help="Enable verbose output"),
+):
+    """Extract FATDATA directory from ZIP or ISO files."""
+    from pathlib import Path
+    from roller_installer.core.asset_extractor import extract_fatdata
+
+    console.print("[bold blue]ROLLER Asset Extractor[/bold blue]")
+    console.print()
+
+    source_path = Path(source)
+    if not source_path.exists():
+        console.print(f"[red]Source file not found: {source_path}[/red]")
+        raise typer.Exit(1)
+
+    # Set output directory
+    output_path = Path(output_dir) if output_dir else Path.cwd()
+
+    try:
+        console.print(f"Extracting FATDATA from: {source_path}")
+        console.print(f"Output directory: {output_path}")
+        console.print()
+
+        result = extract_fatdata(source_path, output_path)
+
+        console.print("[green]✅ Successfully extracted FATDATA![/green]")
+        console.print(f"Location: {result.fatdata_path}")
+
+        if result.has_music:
+            console.print(
+                f"[green]🎵 Also extracted {len(result.music_paths)} music tracks[/green]"
+            )
+
+        # Show contents if verbose
+        if verbose and result.fatdata_path.exists():
+            console.print("\n[bold]FATDATA contents:[/bold]")
+            file_count = 0
+            for item in sorted(result.fatdata_path.rglob("*")):
+                if item.is_file():
+                    relative = item.relative_to(result.fatdata_path)
+                    size = item.stat().st_size
+                    console.print(f"  {relative} ({size:,} bytes)")
+                    file_count += 1
+            console.print(f"\nTotal files extracted: {file_count}")
+
+    except Exception as e:
+        console.print(f"[red]Extraction failed: {e}[/red]")
+        if verbose:
+            import traceback
+
+            console.print(f"[red]{traceback.format_exc()}[/red]")
         raise typer.Exit(1)
 
 

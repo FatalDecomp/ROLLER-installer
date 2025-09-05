@@ -1,0 +1,231 @@
+name: Release ROLLER Installer
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+jobs:
+  create-release:
+    name: Create Release
+    runs-on: ubuntu-latest
+    outputs:
+      release-id: ${{ steps.create-release.outputs.id }}
+      upload-url: ${{ steps.create-release.outputs.upload_url }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Extract version from tag
+        id: version
+        run: |
+          TAG=${GITHUB_REF#refs/tags/}
+          VERSION=${TAG#v}
+          echo "tag=$TAG" >> $GITHUB_OUTPUT
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+
+      - name: Generate release notes
+        id: release-notes
+        run: |
+          # Generate basic release notes
+          echo "## ROLLER Installer ${{ steps.version.outputs.version }}" > release_notes.md
+          echo "" >> release_notes.md
+          echo "Cross-platform installer for ROLLER (Fatal Racing/Whiplash decompilation)." >> release_notes.md
+          echo "" >> release_notes.md
+          echo "### Supported Platforms" >> release_notes.md
+          echo "- Linux x86_64 (GNU/Linux)" >> release_notes.md
+          echo "- Linux ARM64 (GNU/Linux)" >> release_notes.md
+          echo "- macOS ARM64 (Apple Silicon)" >> release_notes.md
+          echo "- Windows x86_64" >> release_notes.md
+          echo "" >> release_notes.md
+          echo "### What's Included" >> release_notes.md
+          echo "Each ZIP package contains:" >> release_notes.md
+          echo "- **roller-installer** binary - The main installer application" >> release_notes.md
+          echo "- **ubi** binary - Utility for downloading and installing packages" >> release_notes.md
+          echo "" >> release_notes.md
+          echo "### Usage" >> release_notes.md
+          echo '```bash' >> release_notes.md
+          echo '# Extract the ZIP for your platform' >> release_notes.md
+          echo '# Run the installer' >> release_notes.md
+          echo './roller-installer install --version latest' >> release_notes.md
+          echo '```' >> release_notes.md
+          echo "" >> release_notes.md
+          echo "For more information, see the project README." >> release_notes.md
+
+      - name: Create GitHub Release
+        id: create-release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ steps.version.outputs.tag }}
+          name: ROLLER Installer ${{ steps.version.outputs.version }}
+          body_path: release_notes.md
+          draft: false
+          prerelease: false
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  build-and-release:
+    name: Build and Upload ${{ matrix.os-name }} ${{ matrix.arch }} 
+    runs-on: ${{ matrix.os }}
+    needs: create-release
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-latest
+            os-name: Linux
+            arch: x86_64
+            binary-suffix: ""
+            ubi-suffix: ""
+            artifact-name: roller-installer-linux-x64
+          - os: ubuntu-latest
+            os-name: Linux
+            arch: aarch64
+            binary-suffix: ""
+            ubi-suffix: ""
+            artifact-name: roller-installer-linux-arm64
+          - os: macos-14
+            os-name: macOS
+            arch: arm64
+            binary-suffix: ""
+            ubi-suffix: ""
+            artifact-name: roller-installer-macos-arm64
+          - os: windows-2022
+            os-name: Windows
+            arch: x86_64
+            binary-suffix: ".exe"
+            ubi-suffix: ".exe"
+            artifact-name: roller-installer-windows-x64
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup mise
+        uses: jdx/mise-action@v2
+        with:
+          install: true
+          cache: true
+          experimental: true
+
+      - name: Install Poetry dependencies
+        run: |
+          mise run deps
+
+      - name: Build installer binary with optimizations
+        run: |
+          mise run build
+
+      - name: Cache ubi binary
+        id: cache-ubi
+        uses: actions/cache@v4
+        with:
+          path: dist/ubi${{ matrix.ubi-suffix }}
+          key: ubi-${{ runner.os }}-${{ matrix.arch }}-${{ hashFiles('mise.toml') }}
+          restore-keys: |
+            ubi-${{ runner.os }}-${{ matrix.arch }}-
+            ubi-${{ runner.os }}-
+
+      - name: Download ubi binary
+        if: steps.cache-ubi.outputs.cache-hit != 'true'
+        working-directory: dist
+        shell: bash
+        run: |
+          if [[ "${{ runner.os }}" == "Windows" ]]; then
+            powershell -exec bypass -c "Invoke-WebRequest -URI 'https://raw.githubusercontent.com/houseabsolute/ubi/master/bootstrap/bootstrap-ubi.ps1' -UseBasicParsing | Invoke-Expression"
+          else
+            # For cross-compilation on Linux ARM64, we need to set the target architecture
+            if [[ "${{ matrix.arch }}" == "aarch64" && "${{ runner.os }}" == "Linux" ]]; then
+              export TARGET_ARCH="aarch64"
+            fi
+            curl --silent --location https://raw.githubusercontent.com/houseabsolute/ubi/master/bootstrap/bootstrap-ubi.sh | TARGET=$(pwd) sh
+          fi
+
+      - name: Verify binaries
+        working-directory: dist
+        shell: bash
+        run: |
+          # List contents of dist directory
+          ls -la
+
+          # Verify both binaries exist
+          if [[ "${{ runner.os }}" == "Windows" ]]; then
+            if [[ ! -f "roller-installer.exe" || ! -f "ubi.exe" ]]; then
+              echo "Missing binaries!"
+              exit 1
+            fi
+            echo "✓ Found roller-installer.exe and ubi.exe"
+          else
+            if [[ ! -f "roller-installer" || ! -f "ubi" ]]; then
+              echo "Missing binaries!"
+              exit 1
+            fi
+            echo "✓ Found roller-installer and ubi"
+          fi
+
+      - name: Create release package
+        working-directory: dist
+        shell: bash
+        run: |
+          # Create ZIP package for this platform
+          if [[ "${{ runner.os }}" == "Windows" ]]; then
+            powershell -Command "Compress-Archive -Path 'roller-installer.exe', 'ubi.exe' -DestinationPath '${{ matrix.artifact-name }}.zip' -CompressionLevel Optimal"
+          else
+            zip -9 "${{ matrix.artifact-name }}.zip" roller-installer${{ matrix.binary-suffix }} ubi${{ matrix.ubi-suffix }}
+          fi
+          
+          # Generate checksum
+          if [[ "${{ runner.os }}" == "Windows" ]]; then
+            powershell -Command "Get-FileHash -Path '${{ matrix.artifact-name }}.zip' -Algorithm SHA256 | Select-Object Hash | Out-String -NoNewline" | tr '[:upper:]' '[:lower:]' > "${{ matrix.artifact-name }}.zip.sha256"
+          else
+            sha256sum "${{ matrix.artifact-name }}.zip" | cut -d' ' -f1 > "${{ matrix.artifact-name }}.zip.sha256"
+          fi
+          
+          echo "Created package: ${{ matrix.artifact-name }}.zip"
+          ls -la "${{ matrix.artifact-name }}.zip"*
+
+      - name: Upload release asset
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ github.ref_name }}
+          files: |
+            dist/${{ matrix.artifact-name }}.zip
+            dist/${{ matrix.artifact-name }}.zip.sha256
+          fail_on_unmatched_files: true
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  finalize-release:
+    name: Finalize Release
+    runs-on: ubuntu-latest
+    needs: [create-release, build-and-release]
+    steps:
+      - name: Extract version from tag
+        id: version
+        run: |
+          TAG=${GITHUB_REF#refs/tags/}
+          VERSION=${TAG#v}
+          echo "tag=$TAG" >> $GITHUB_OUTPUT
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+
+      - name: Generate release summary
+        run: |
+          echo "## 🎉 ROLLER Installer ${{ steps.version.outputs.version }} Released!" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "Successfully built and released installer packages for all supported platforms:" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "| Platform | Architecture | Package | Status |" >> $GITHUB_STEP_SUMMARY
+          echo "|----------|-------------|---------|--------|" >> $GITHUB_STEP_SUMMARY
+          echo "| 🐧 Linux | x86_64 | roller-installer-linux-x64.zip | ✅ Released |" >> $GITHUB_STEP_SUMMARY
+          echo "| 🐧 Linux | ARM64 | roller-installer-linux-arm64.zip | ✅ Released |" >> $GITHUB_STEP_SUMMARY
+          echo "| 🍎 macOS | ARM64 | roller-installer-macos-arm64.zip | ✅ Released |" >> $GITHUB_STEP_SUMMARY
+          echo "| 🪟 Windows | x86_64 | roller-installer-windows-x64.zip | ✅ Released |" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "Each package includes both the `roller-installer` binary and the `ubi` utility." >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### 📥 Download" >> $GITHUB_STEP_SUMMARY
+          echo "[**Download from GitHub Releases →**](https://github.com/${{ github.repository }}/releases/tag/${{ steps.version.outputs.tag }})" >> $GITHUB_STEP_SUMMARY

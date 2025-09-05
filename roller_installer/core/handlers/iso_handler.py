@@ -32,8 +32,8 @@ class IsoHandler(BaseAssetHandler):
 
             try:
                 # List root directory entries
-                for child in iso.list_children("/"):
-                    if child.file_identifier().decode("utf-8").lower() == "fatdata":
+                for child in iso.list_children(iso_path="/"):
+                    if child.file_identifier().decode("utf-8").upper() == "FATDATA":
                         logger.debug("Found FATDATA directory in ISO root")
                         return "/FATDATA"  # ISO paths are uppercase by convention
 
@@ -78,7 +78,7 @@ class IsoHandler(BaseAssetHandler):
         """Recursively extract a directory from ISO."""
         try:
             # List all entries in the directory
-            for child in iso.list_children(iso_path):
+            for child in iso.list_children(iso_path=iso_path):
                 child_name = child.file_identifier().decode("utf-8")
 
                 # Skip '.' and '..' entries
@@ -99,7 +99,7 @@ class IsoHandler(BaseAssetHandler):
                 else:
                     # Extract file
                     with open(child_output_path, "wb") as output_file:
-                        iso.get_file_from_iso_fp(output_file, child_iso_path)
+                        iso.get_file_from_iso_fp(output_file, iso_path=child_iso_path)
                     logger.debug(f"Extracted: {child_iso_path} -> {child_output_path}")
 
         except Exception as e:

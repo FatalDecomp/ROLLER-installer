@@ -418,14 +418,14 @@ dev-dependencies = [
 ### Development Setup
 ```bash
 cd installer
-pip install -e .
-pip install -r requirements-dev.txt
+poetry install
+poetry install --with dev,lint
 
 # Run in development mode
-python -m roller_installer --gui
+poetry run python -m roller_installer --gui
 
 # Run tests
-pytest
+poetry run pytest
 ```
 
 ### Native Binary Building
@@ -449,9 +449,6 @@ python scripts/test_installer.py
 
 ### 2. **Package Managers**
 ```bash
-# Python Package Index
-pip install roller-installer
-
 # Windows Package Manager
 winget install ROLLER.Installer
 

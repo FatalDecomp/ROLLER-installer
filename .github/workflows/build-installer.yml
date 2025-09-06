@@ -27,15 +27,22 @@ jobs:
             arch: aarch64
             binary-suffix: ""
             ubi-suffix: ""
-            artifact-name: roller-installer-linux-arm64
-            cache-key: linux-arm64
+            artifact-name: roller-installer-linux-aarch64
+            cache-key: linux-aarch64
           - os: macos-14
             os-name: macOS
-            arch: arm64
+            arch: aarch64
             binary-suffix: ""
             ubi-suffix: ""
-            artifact-name: roller-installer-macos-arm64
-            cache-key: macos-arm64
+            artifact-name: roller-installer-macos-aarch64
+            cache-key: macos-aarch64
+          - os: macos-13
+            os-name: macOS
+            arch: x86_64
+            binary-suffix: ""
+            ubi-suffix: ""
+            artifact-name: roller-installer-macos-x64
+            cache-key: macos-x64
           - os: windows-2022
             os-name: Windows
             arch: x86_64
@@ -170,8 +177,9 @@ jobs:
           echo "| Platform | Status |" >> $GITHUB_STEP_SUMMARY
           echo "|----------|--------|" >> $GITHUB_STEP_SUMMARY
           echo "| Linux x64 | ✅ Success |" >> $GITHUB_STEP_SUMMARY
-          echo "| Linux ARM64 | ✅ Success |" >> $GITHUB_STEP_SUMMARY
-          echo "| macOS ARM64 | ✅ Success |" >> $GITHUB_STEP_SUMMARY
+          echo "| Linux AArch64 | ✅ Success |" >> $GITHUB_STEP_SUMMARY
+          echo "| macOS AArch64 | ✅ Success |" >> $GITHUB_STEP_SUMMARY
+          echo "| macOS x64 | ✅ Success |" >> $GITHUB_STEP_SUMMARY
           echo "| Windows x64 | ✅ Success |" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "All installer packages built successfully!" >> $GITHUB_STEP_SUMMARY

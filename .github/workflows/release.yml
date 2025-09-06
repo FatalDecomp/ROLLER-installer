@@ -36,8 +36,8 @@ jobs:
           echo "" >> release_notes.md
           echo "### Supported Platforms" >> release_notes.md
           echo "- Linux x86_64 (GNU/Linux)" >> release_notes.md
-          echo "- Linux ARM64 (GNU/Linux)" >> release_notes.md
-          echo "- macOS ARM64 (Apple Silicon)" >> release_notes.md
+          echo "- Linux AArch64 (GNU/Linux)" >> release_notes.md
+          echo "- macOS AArch64 (Apple Silicon)" >> release_notes.md
           echo "- Windows x86_64" >> release_notes.md
           echo "" >> release_notes.md
           echo "### What's Included" >> release_notes.md
@@ -85,13 +85,13 @@ jobs:
             arch: aarch64
             binary-suffix: ""
             ubi-suffix: ""
-            artifact-name: roller-installer-linux-arm64
+            artifact-name: roller-installer-linux-aarch64
           - os: macos-14
             os-name: macOS
-            arch: arm64
+            arch: aarch64
             binary-suffix: ""
             ubi-suffix: ""
-            artifact-name: roller-installer-macos-arm64
+            artifact-name: roller-installer-macos-aarch64
           - os: windows-2022
             os-name: Windows
             arch: x86_64
@@ -221,8 +221,9 @@ jobs:
           echo "| Platform | Architecture | Package | Status |" >> $GITHUB_STEP_SUMMARY
           echo "|----------|-------------|---------|--------|" >> $GITHUB_STEP_SUMMARY
           echo "| 🐧 Linux | x86_64 | roller-installer-linux-x64.zip | ✅ Released |" >> $GITHUB_STEP_SUMMARY
-          echo "| 🐧 Linux | ARM64 | roller-installer-linux-arm64.zip | ✅ Released |" >> $GITHUB_STEP_SUMMARY
-          echo "| 🍎 macOS | ARM64 | roller-installer-macos-arm64.zip | ✅ Released |" >> $GITHUB_STEP_SUMMARY
+          echo "| 🐧 Linux | AArch64 | roller-installer-linux-aarch64.zip | ✅ Released |" >> $GITHUB_STEP_SUMMARY
+          echo "| 🍎 macOS | AArch64 | roller-installer-macos-aarch64.zip | ✅ Released |" >> $GITHUB_STEP_SUMMARY
+          echo "| 🍎 macOS | x86_64 | roller-installer-macos-x64.zip | ✅ Released |" >> $GITHUB_STEP_SUMMARY
           echo "| 🪟 Windows | x86_64 | roller-installer-windows-x64.zip | ✅ Released |" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "Each package includes both the `roller-installer` binary and the `ubi` utility." >> $GITHUB_STEP_SUMMARY

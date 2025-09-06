@@ -230,7 +230,7 @@ def extract_assets(
         ..., help="Path to ZIP or ISO file containing FATDATA"
     ),
     output_dir: Optional[str] = typer.Option(
-        None, "--output", "-o", help="Output directory (default: current directory)"
+        None, "--output-dir", "-o", help="Output directory (default: current directory)"
     ),
     verbose: bool = typer.Option(False, "--verbose", help="Enable verbose output"),
 ):

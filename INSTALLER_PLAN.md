@@ -202,7 +202,7 @@ roller-installer --source /path/to/fatdata --install-dir /opt/roller --auto-conf
 roller-installer --check-updates
 
 # Extract assets only
-roller-installer --extract-only --source game.iso --output ./extracted
+roller-installer --extract-only --source game.iso --output-dir ./extracted
 ```
 
 ### Technical Implementation

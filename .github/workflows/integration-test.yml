@@ -2,12 +2,6 @@ name: Integration Tests
 
 on:
   workflow_dispatch:
-    inputs:
-      test_version:
-        description: "ROLLER version to test with (e.g., nightly-0.0.0-769b82d)"
-        required: false
-        default: "latest"
-        type: string
 
 jobs:
   integration-test:
@@ -72,24 +66,10 @@ jobs:
             ./roller-installer cli list-releases
           fi
 
-      - name: Test full ROLLER installation (triggers ubi auto-download)
+      - name: Test full ROLLER installation
         shell: bash
         run: |
-          echo "Testing full ROLLER installation (will auto-download ubi)..."
-
-          # Determine version to install
-          if [[ "${{ github.event.inputs.test_version }}" == "latest" || -z "${{ github.event.inputs.test_version }}" ]]; then
-            # Get the latest version from list-releases
-            if [[ "${{ runner.os }}" == "Windows" ]]; then
-              VERSION=$(dist/roller-installer.exe cli list-releases | grep -E "nightly-[0-9]" | head -1 | awk '{print $1}' | tr -d '│')
-            else
-              VERSION=$(dist/roller-installer cli list-releases | grep -E "nightly-[0-9]" | head -1 | awk '{print $1}' | tr -d '│')
-            fi
-          else
-            VERSION="${{ github.event.inputs.test_version }}"
-          fi
-
-          echo "Installing ROLLER version: $VERSION"
+          echo "Testing full ROLLER installation..."
 
           # Create test directory
           mkdir -p "${{ matrix.test-dir }}"
@@ -97,11 +77,11 @@ jobs:
           # Uninstall ubi from mise so that it will be reinstalled by the installer
           mise uninstall ubi
 
-          # Run installer
+          # Run installer with latest version
           if [[ "${{ runner.os }}" == "Windows" ]]; then
-            dist/roller-installer.exe cli install --version "$VERSION" --install-dir "${{ matrix.test-dir }}" --verbose --no-shortcuts
+            dist/roller-installer.exe cli install --install-dir "${{ matrix.test-dir }}" --verbose --no-shortcuts
           else
-            dist/roller-installer cli install --version "$VERSION" --install-dir "${{ matrix.test-dir }}" --verbose --no-shortcuts
+            dist/roller-installer cli install --install-dir "${{ matrix.test-dir }}" --verbose --no-shortcuts
           fi
 
       - name: Verify ubi was downloaded
@@ -158,7 +138,7 @@ jobs:
           echo "Verifying bchunk is now available..."
           echo "Tools directory contents:"
           ls -la dist/tools/
-          
+
           # Test bchunk
           echo "Testing bchunk..."
           if [[ "${{ runner.os }}" == "Windows" ]]; then
@@ -217,13 +197,11 @@ jobs:
           fi
           mkdir -p "$TEST_DIR2"
 
-          # Get latest version again
+          # Run installer with latest version
           if [[ "${{ runner.os }}" == "Windows" ]]; then
-            VERSION=$(dist/roller-installer.exe cli list-releases | grep -E "nightly-[0-9]" | head -1 | awk '{print $1}' | tr -d '│')
-            dist/roller-installer.exe cli install --version "$VERSION" --install-dir "$TEST_DIR2" --verbose --no-shortcuts
+            dist/roller-installer.exe cli install --install-dir "$TEST_DIR2" --verbose --no-shortcuts
           else
-            VERSION=$(dist/roller-installer cli list-releases | grep -E "nightly-[0-9]" | head -1 | awk '{print $1}' | tr -d '│')
-            dist/roller-installer cli install --version "$VERSION" --install-dir "$TEST_DIR2" --verbose --no-shortcuts
+            dist/roller-installer cli install --install-dir "$TEST_DIR2" --verbose --no-shortcuts
           fi
 
           echo "✓ Second installation completed (ubi was reused)"

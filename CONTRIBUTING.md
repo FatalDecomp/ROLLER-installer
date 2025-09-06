@@ -296,6 +296,73 @@ The project includes GitHub Actions workflows for:
 - Release artifact generation
 - Code quality checks with ruff
 - Dependency vulnerability scanning
+- Manual integration testing (see below)
+
+## Testing
+
+### Integration Tests
+
+The project includes a comprehensive integration test workflow that can be run manually to verify the full installer functionality, including ubi auto-download and ROLLER installation.
+
+#### Running Integration Tests
+
+**Via GitHub Actions UI:**
+1. Go to the [Actions tab](https://github.com/FatalDecomp/ROLLER-installer/actions) in the repository
+2. Select "Integration Tests" workflow
+3. Click "Run workflow"
+4. Optionally specify a ROLLER version to test (defaults to latest)
+5. The workflow will run on Linux, macOS, and Windows
+
+**What the Integration Tests Cover:**
+- ✅ **Installer Help Command** - Basic functionality test
+- ✅ **List Releases** - Tests GitHub API integration and triggers ubi auto-download
+- ✅ **ubi Installation** - Verifies ubi was downloaded to tools/ directory
+- ✅ **ubi Functionality** - Tests that downloaded ubi works correctly
+- ✅ **Full ROLLER Installation** - Downloads and installs a complete ROLLER release
+- ✅ **Installation Verification** - Confirms ROLLER binary was installed correctly
+- ✅ **Tool Reuse** - Runs a second installation to verify ubi is cached and reused
+
+#### Why Manual Integration Tests?
+
+Integration tests are **manual-only** (not run on every commit) because:
+- They download external tools (ubi) and large ROLLER releases
+- They test real GitHub API interactions
+- They consume significant CI resources and time
+- They're more appropriate for pre-release validation than continuous testing
+
+#### Local Integration Testing
+
+You can also run integration tests locally:
+
+```bash
+# Build the installer
+mise run build
+
+# Test basic functionality
+./dist/roller-installer --help
+./dist/roller-installer cli list-releases
+
+# Test full installation
+./dist/roller-installer cli install --version latest --install-dir /tmp/test-roller --verbose
+
+# Verify tools directory was created
+ls -la dist/tools/
+
+# Verify ROLLER was installed
+ls -la /tmp/test-roller/
+```
+
+### Unit Testing
+
+For unit tests, use standard Python testing frameworks:
+
+```bash
+# Install test dependencies
+poetry install --with test
+
+# Run unit tests (when implemented)
+pytest tests/
+```
 
 ## Development Workflow
 

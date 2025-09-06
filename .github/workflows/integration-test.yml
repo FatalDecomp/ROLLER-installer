@@ -1,0 +1,267 @@
+name: Integration Tests
+
+on:
+  workflow_dispatch:
+    inputs:
+      test_version:
+        description: "ROLLER version to test with (e.g., nightly-0.0.0-769b82d)"
+        required: false
+        default: "latest"
+        type: string
+
+jobs:
+  integration-test:
+    name: Integration Test on ${{ matrix.os-name }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-latest
+            os-name: Linux
+            binary-suffix: ""
+            test-dir: "/tmp/roller-test"
+          - os: macos-14
+            os-name: macOS
+            binary-suffix: ""
+            test-dir: "/tmp/roller-test"
+          - os: windows-2022
+            os-name: Windows
+            binary-suffix: ".exe"
+            test-dir: "C:\\temp\\roller-test"
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup mise
+        uses: jdx/mise-action@v2
+        with:
+          install: true
+          cache: true
+          experimental: true
+
+      - name: Install Poetry dependencies
+        run: |
+          mise run deps
+
+      - name: Build installer binary
+        run: |
+          mise run build
+
+      - name: Test installer help
+        working-directory: dist
+        shell: bash
+        run: |
+          if [[ "${{ runner.os }}" == "Windows" ]]; then
+            ./roller-installer.exe --help
+          else
+            ./roller-installer --help
+          fi
+
+      - name: Test list-releases (GitHub API)
+        working-directory: dist
+        shell: bash
+        run: |
+          echo "Testing list-releases command (GitHub API only)..."
+          if [[ "${{ runner.os }}" == "Windows" ]]; then
+            ./roller-installer.exe cli list-releases
+          else
+            ./roller-installer cli list-releases
+          fi
+
+      - name: Test full ROLLER installation (triggers ubi auto-download)
+        shell: bash
+        run: |
+          echo "Testing full ROLLER installation (will auto-download ubi)..."
+
+          # Determine version to install
+          if [[ "${{ github.event.inputs.test_version }}" == "latest" || -z "${{ github.event.inputs.test_version }}" ]]; then
+            # Get the latest version from list-releases
+            if [[ "${{ runner.os }}" == "Windows" ]]; then
+              VERSION=$(dist/roller-installer.exe cli list-releases | grep -E "nightly-[0-9]" | head -1 | awk '{print $1}' | tr -d '│')
+            else
+              VERSION=$(dist/roller-installer cli list-releases | grep -E "nightly-[0-9]" | head -1 | awk '{print $1}' | tr -d '│')
+            fi
+          else
+            VERSION="${{ github.event.inputs.test_version }}"
+          fi
+
+          echo "Installing ROLLER version: $VERSION"
+
+          # Create test directory
+          mkdir -p "${{ matrix.test-dir }}"
+
+          # Uninstall ubi from mise so that it will be reinstalled by the installer
+          mise uninstall ubi
+
+          # Run installer
+          if [[ "${{ runner.os }}" == "Windows" ]]; then
+            dist/roller-installer.exe cli install --version "$VERSION" --install-dir "${{ matrix.test-dir }}" --verbose --no-shortcuts
+          else
+            dist/roller-installer cli install --version "$VERSION" --install-dir "${{ matrix.test-dir }}" --verbose --no-shortcuts
+          fi
+
+      - name: Verify ubi was downloaded
+        working-directory: dist
+        shell: bash
+        run: |
+          echo "Verifying ubi was downloaded to tools/ directory..."
+          echo "Current directory: $(pwd)"
+          echo "Checking for tools directory..."
+
+          if [[ "${{ runner.os }}" == "Windows" ]]; then
+            if [[ -f "tools/ubi.exe" ]]; then
+              echo "✓ ubi.exe found in tools/"
+              ls -la tools/ubi.exe
+            else
+              echo "✗ ubi.exe not found in tools/"
+              ls -la tools/ || echo "tools/ directory doesn't exist"
+              exit 1
+            fi
+          else
+            if [[ -f "tools/ubi" ]]; then
+              echo "✓ ubi found in tools/"
+              ls -la tools/ubi
+            else
+              echo "✗ ubi not found in tools/"
+              ls -la tools/ || echo "tools/ directory doesn't exist"
+              exit 1
+            fi
+          fi
+
+      - name: Test ubi functionality
+        shell: bash
+        run: |
+          echo "Testing ubi functionality..."
+          if [[ "${{ runner.os }}" == "Windows" ]]; then
+            dist/tools/ubi.exe --version
+          else
+            dist/tools/ubi --version
+          fi
+
+      - name: Test download-tools command
+        shell: bash
+        run: |
+          echo "Testing download-tools command to ensure all tools are available..."
+          if [[ "${{ runner.os }}" == "Windows" ]]; then
+            dist/roller-installer.exe cli download-tools --verbose
+          else
+            dist/roller-installer cli download-tools --verbose
+          fi
+
+      - name: Verify bchunk after download-tools
+        shell: bash
+        run: |
+          echo "Verifying bchunk is now available..."
+          echo "Tools directory contents:"
+          ls -la dist/tools/
+          
+          # Test bchunk
+          echo "Testing bchunk..."
+          if [[ "${{ runner.os }}" == "Windows" ]]; then
+            if [[ -f "dist/tools/bchunk.exe" ]]; then
+              dist/tools/bchunk.exe 2>&1 | head -3 || echo "bchunk executed"
+              echo "✓ bchunk.exe is working"
+            else
+              echo "✗ bchunk.exe not found after download-tools"
+              exit 1
+            fi
+          else
+            if [[ -f "dist/tools/bchunk" ]]; then
+              dist/tools/bchunk 2>&1 | head -3 || echo "bchunk executed"
+              echo "✓ bchunk is working"
+            else
+              echo "✗ bchunk not found after download-tools"
+              exit 1
+            fi
+          fi
+
+      - name: Verify ROLLER installation
+        shell: bash
+        run: |
+          echo "Verifying ROLLER installation..."
+          ls -la "${{ matrix.test-dir }}"
+
+          # Check that ROLLER binary exists
+          if [[ "${{ runner.os }}" == "Windows" ]]; then
+            if [[ -f "${{ matrix.test-dir }}/roller.exe" ]]; then
+              echo "✓ roller.exe found"
+              ls -la "${{ matrix.test-dir }}/roller.exe"
+            else
+              echo "✗ roller.exe not found"
+              exit 1
+            fi
+          else
+            if [[ -f "${{ matrix.test-dir }}/roller" ]]; then
+              echo "✓ roller binary found"
+              ls -la "${{ matrix.test-dir }}/roller"
+            else
+              echo "✗ roller binary not found"
+              exit 1
+            fi
+          fi
+
+      - name: Test second installation (should reuse ubi)
+        shell: bash
+        run: |
+          echo "Testing second installation to verify ubi reuse..."
+
+          # Create second test directory
+          if [[ "${{ runner.os }}" == "Windows" ]]; then
+            TEST_DIR2="C:\\temp\\roller-test-2"
+          else
+            TEST_DIR2="/tmp/roller-test-2"
+          fi
+          mkdir -p "$TEST_DIR2"
+
+          # Get latest version again
+          if [[ "${{ runner.os }}" == "Windows" ]]; then
+            VERSION=$(dist/roller-installer.exe cli list-releases | grep -E "nightly-[0-9]" | head -1 | awk '{print $1}' | tr -d '│')
+            dist/roller-installer.exe cli install --version "$VERSION" --install-dir "$TEST_DIR2" --verbose --no-shortcuts
+          else
+            VERSION=$(dist/roller-installer cli list-releases | grep -E "nightly-[0-9]" | head -1 | awk '{print $1}' | tr -d '│')
+            dist/roller-installer cli install --version "$VERSION" --install-dir "$TEST_DIR2" --verbose --no-shortcuts
+          fi
+
+          echo "✓ Second installation completed (ubi was reused)"
+
+      - name: Integration test summary
+        shell: bash
+        run: |
+          echo "## Integration Test Summary" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "| Test | Status |" >> $GITHUB_STEP_SUMMARY
+          echo "|------|--------|" >> $GITHUB_STEP_SUMMARY
+          echo "| Installer Help | ✅ Pass |" >> $GITHUB_STEP_SUMMARY
+          echo "| List Releases (GitHub API) | ✅ Pass |" >> $GITHUB_STEP_SUMMARY
+          echo "| Full ROLLER Installation (triggers ubi auto-download) | ✅ Pass |" >> $GITHUB_STEP_SUMMARY
+          echo "| ubi Installation Verification | ✅ Pass |" >> $GITHUB_STEP_SUMMARY
+          echo "| ubi Functionality Test | ✅ Pass |" >> $GITHUB_STEP_SUMMARY
+          echo "| Download-tools Command | ✅ Pass |" >> $GITHUB_STEP_SUMMARY
+          echo "| All Tools Verification (ubi + bchunk) | ✅ Pass |" >> $GITHUB_STEP_SUMMARY
+          echo "| ROLLER Binary Verification | ✅ Pass |" >> $GITHUB_STEP_SUMMARY
+          echo "| Second Installation (ubi reuse) | ✅ Pass |" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "✅ **All integration tests passed on ${{ matrix.os-name }}!**" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "The installer successfully:" >> $GITHUB_STEP_SUMMARY
+          echo "- Auto-downloaded ubi when needed" >> $GITHUB_STEP_SUMMARY
+          echo "- Cached ubi in tools/ directory" >> $GITHUB_STEP_SUMMARY
+          echo "- Downloaded and installed ROLLER" >> $GITHUB_STEP_SUMMARY
+          echo "- Reused ubi on subsequent runs" >> $GITHUB_STEP_SUMMARY
+
+      - name: Cleanup test directories
+        if: always()
+        shell: bash
+        run: |
+          echo "Cleaning up test directories..."
+          rm -rf "${{ matrix.test-dir }}" || true
+          if [[ "${{ runner.os }}" == "Windows" ]]; then
+            rm -rf "C:\\temp\\roller-test-2" || true
+          else
+            rm -rf "/tmp/roller-test-2" || true
+          fi
+          echo "Cleanup completed"

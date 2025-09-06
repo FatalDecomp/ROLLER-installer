@@ -4,7 +4,7 @@ import subprocess
 import logging
 from pathlib import Path
 from typing import Optional, Callable
-from roller_installer.utils.ubi_resolver import get_ubi_command, check_ubi_available
+from roller_installer.utils.binary_resolver import get_ubi_resolver
 
 logger = logging.getLogger(__name__)
 
@@ -15,7 +15,8 @@ class UbiDownloader:
     def __init__(self):
         """Initialize UBI downloader for fataldecomp/roller repository."""
         self.repo_name = "FatalDecomp/ROLLER"
-        self.ubi_command = get_ubi_command()
+        ubi_resolver = get_ubi_resolver()
+        self.ubi_command = ubi_resolver.get_command()
 
     def download(
         self,
@@ -86,16 +87,5 @@ class UbiDownloader:
         Returns:
             True if ubi is available, False otherwise
         """
-        if not check_ubi_available():
-            return False
-
-        try:
-            result = subprocess.run(
-                [self.ubi_command, "--version"],
-                capture_output=True,
-                text=True,
-                timeout=5,
-            )
-            return result.returncode == 0
-        except (subprocess.SubprocessError, FileNotFoundError):
-            return False
+        ubi_resolver = get_ubi_resolver()
+        return ubi_resolver.is_available() and ubi_resolver.verify_working()

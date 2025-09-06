@@ -9,7 +9,7 @@ from typing import Optional, List
 
 from ..asset_extractor import BaseAssetHandler, ExtractionResult
 from .iso_handler import IsoHandler
-from ...utils.bchunk_resolver import find_bchunk_binary
+from ...utils.binary_resolver import get_bchunk_resolver
 
 logger = logging.getLogger(__name__)
 
@@ -19,7 +19,8 @@ class CueBinHandler(BaseAssetHandler):
 
     def __init__(self):
         """Initialize CUE/BIN handler."""
-        bchunk_path = find_bchunk_binary()
+        bchunk_resolver = get_bchunk_resolver()
+        bchunk_path = bchunk_resolver.find_binary()
         self.bchunk_cmd = str(bchunk_path) if bchunk_path else None
         self.iso_handler = IsoHandler()
 

@@ -18,6 +18,52 @@ console = Console()
 cli_app = typer.Typer(help="Command-line interface for ROLLER installer")
 
 
+def _ensure_tools_available(verbose: bool = False):
+    """Ensure all required tools are available, download if needed."""
+    from roller_installer.utils.binary_resolver import ToolManager
+    
+    tool_manager = ToolManager()
+    
+    # First check availability for verbose output
+    if verbose:
+        availability = tool_manager.check_tools_availability()
+        for tool_name, info in availability.items():
+            if info['available']:
+                if info['location'] == 'installed':
+                    console.print(f"  ✓ {tool_name} ready at: {info['path']}")
+                else:
+                    console.print(f"  ✓ {tool_name} found in system: {info['path']}")
+    
+    # Ensure tools are available
+    def progress_callback(message: str):
+        if verbose:
+            console.print(f"  {message}")
+        else:
+            console.print(message)
+    
+    results = tool_manager.ensure_tools_available(progress_callback=progress_callback)
+    
+    # Count successes and report
+    success_count = sum(1 for result in results.values() if result['success'])
+    total_count = tool_manager.get_tool_count()
+    
+    if verbose:
+        for tool_name, result in results.items():
+            if result['success']:
+                if not result['was_installed']:
+                    # Was already available, we showed this above
+                    pass
+                else:
+                    console.print(f"  ✓ {tool_name} ready")
+            else:
+                console.print(f"  ⚠️  {tool_name} failed: {result['error']}")
+    
+    if success_count < total_count:
+        console.print("  ⚠️  Some tools may not be available, but installation will continue")
+    elif verbose:
+        console.print("  ✓ All tools ready")
+
+
 @cli_app.command()
 def install(
     version: Optional[str] = typer.Option(
@@ -65,6 +111,11 @@ def install(
                 return
 
         console.print(f"Installing ROLLER {version} to {install_path}")
+
+        # Ensure required tools are available
+        if verbose:
+            console.print("🔧 Ensuring required tools are available...")
+        _ensure_tools_available(verbose=verbose)
 
         # Download using ubi
         downloader = UbiDownloader()
@@ -230,6 +281,85 @@ def extract_assets(
             import traceback
 
             console.print(f"[red]{traceback.format_exc()}[/red]")
+        raise typer.Exit(1)
+
+
+@cli_app.command("download-tools")
+def download_tools(
+    force: bool = typer.Option(
+        False, "--force", help="Force re-download even if tools already exist"
+    ),
+    verbose: bool = typer.Option(False, "--verbose", help="Enable verbose output"),
+):
+    """Download external tools (ubi, bchunk) to the tools directory."""
+    from roller_installer.utils.binary_resolver import ToolManager
+    
+    console.print("[bold blue]ROLLER Installer - Download Tools[/bold blue]")
+    console.print()
+    
+    tool_manager = ToolManager()
+    
+    # Get tool descriptions for display
+    tool_descriptions = {
+        "ubi": "Universal Binary Installer for downloading ROLLER releases",
+        "bchunk": "Disc image conversion tool for CUE/BIN files",
+    }
+    
+    def progress_callback(message: str):
+        if verbose:
+            console.print(f"  {message}")
+    
+    results = tool_manager.download_tools(force=force, progress_callback=progress_callback)
+    
+    success_count = 0
+    total_count = tool_manager.get_tool_count()
+    
+    for tool_name in tool_manager.get_tool_names():
+        result = results[tool_name]
+        description = tool_descriptions.get(tool_name, "External tool")
+        
+        console.print(f"[cyan]• {tool_name}[/cyan] - {description}")
+        
+        try:
+            if result['success']:
+                if result['already_existed'] and not result['was_downloaded']:
+                    # Tool already existed and wasn't re-downloaded
+                    path = result['path']
+                    if path.parent.name == 'tools':
+                        console.print(f"  ✓ [green]Already installed at:[/green] {path}")
+                    else:
+                        console.print(f"  ✓ [green]Found in system at:[/green] {path}")
+                        console.print(f"  ℹ️  Use --force to download to tools/ directory anyway")
+                else:
+                    # Tool was downloaded/installed
+                    console.print(f"  ✅ [bold green]Downloaded successfully:[/bold green] {result['path']}")
+                
+                # Test the tool if verbose
+                if verbose and result.get('working') is True:
+                    console.print(f"  ✓ [green]{tool_name} is working correctly[/green]")
+                elif verbose and result.get('working') is False:
+                    console.print(f"  ⚠️  [yellow]{tool_name} may not be working correctly[/yellow]")
+                
+                success_count += 1
+            else:
+                console.print(f"  ❌ [red]{result['error']}[/red]")
+                
+        except Exception as e:
+            console.print(f"  ❌ [red]Error processing {tool_name}: {str(e)}[/red]")
+            if verbose:
+                import traceback
+                console.print(f"[dim]{traceback.format_exc()}[/dim]")
+        
+        console.print()
+    
+    # Summary
+    if success_count == total_count:
+        console.print(f"✅ [bold green]All {total_count} tools are ready![/bold green]")
+    elif success_count > 0:
+        console.print(f"⚠️  [yellow]{success_count}/{total_count} tools are ready[/yellow]")
+        console.print("Some tools may not be available or failed to download.")
+    else:
+        console.print("❌ [bold red]No tools were successfully downloaded[/bold red]")
         raise typer.Exit(1)
 
 

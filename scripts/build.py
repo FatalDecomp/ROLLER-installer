@@ -44,16 +44,13 @@ def main():
     # Use different flags based on platform
     if sys.platform == "win32":
         # Simplified build for Windows - avoid problematic optimizations
-        pyinstaller_cmd = """
-        poetry run pyinstaller \
-          --onefile \
-          --name roller-installer \
-          --clean \
-          --hidden-import roller_installer.core.handlers.zip_handler \
-          --hidden-import roller_installer.core.handlers.iso_handler \
-          --hidden-import roller_installer.core.handlers.cue_bin_handler \
-          main.py
-        """
+        pyinstaller_cmd = (
+            "poetry run pyinstaller --onefile --name roller-installer --clean "
+            "--hidden-import roller_installer.core.handlers.zip_handler "
+            "--hidden-import roller_installer.core.handlers.iso_handler "
+            "--hidden-import roller_installer.core.handlers.cue_bin_handler "
+            "main.py"
+        )
     else:
         # Full optimizations for Unix systems
         pyinstaller_cmd = """

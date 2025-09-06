@@ -4,7 +4,7 @@
 import subprocess
 import sys
 from pathlib import Path
-from icons import ICONS
+from roller_installer.utils.icons import ICONS
 
 
 def run_command(cmd, description=None):

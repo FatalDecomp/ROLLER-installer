@@ -6,6 +6,7 @@ import typer
 from rich.console import Console
 from rich.table import Table
 from typing import Optional
+from ..utils.icons import ICONS
 
 # Create the main app and console
 app = typer.Typer(
@@ -30,9 +31,9 @@ def _ensure_tools_available(verbose: bool = False):
         for tool_name, info in availability.items():
             if info['available']:
                 if info['location'] == 'installed':
-                    console.print(f"  ✓ {tool_name} ready at: {info['path']}")
+                    console.print(f"  {ICONS['check']} {tool_name} ready at: {info['path']}")
                 else:
-                    console.print(f"  ✓ {tool_name} found in system: {info['path']}")
+                    console.print(f"  {ICONS['check']} {tool_name} found in system: {info['path']}")
     
     # Ensure tools are available
     def progress_callback(message: str):
@@ -54,14 +55,14 @@ def _ensure_tools_available(verbose: bool = False):
                     # Was already available, we showed this above
                     pass
                 else:
-                    console.print(f"  ✓ {tool_name} ready")
+                    console.print(f"  {ICONS['check']} {tool_name} ready")
             else:
-                console.print(f"  ⚠️  {tool_name} failed: {result['error']}")
+                console.print(f"  {ICONS['warning']}  {tool_name} failed: {result['error']}")
     
     if success_count < total_count:
-        console.print("  ⚠️  Some tools may not be available, but installation will continue")
+        console.print(f"  {ICONS['warning']}  Some tools may not be available, but installation will continue")
     elif verbose:
-        console.print("  ✓ All tools ready")
+        console.print(f"  {ICONS['check']} All tools ready")
 
 
 @cli_app.command()
@@ -114,7 +115,7 @@ def install(
 
         # Ensure required tools are available
         if verbose:
-            console.print("🔧 Ensuring required tools are available...")
+            console.print(f"{ICONS['tools']} Ensuring required tools are available...")
         _ensure_tools_available(verbose=verbose)
 
         # Download using ubi
@@ -130,7 +131,7 @@ def install(
         version_file = install_path / ".roller-version"
         version_file.write_text(version)
 
-        console.print(f"[green]✅ ROLLER {version} installed successfully![/green]")
+        console.print(f"[green]{ICONS['success']} ROLLER {version} installed successfully![/green]")
         console.print(f"Binary location: {binary_path}")
 
     except Exception as e:
@@ -174,7 +175,7 @@ def check_updates(
             raise typer.Exit(1)
 
         if latest_version == current_version:
-            console.print("[green]✅ You're up to date![/green]")
+            console.print(f"[green]{ICONS['success']} You're up to date![/green]")
         else:
             console.print(f"[yellow]Update available: {latest_version}[/yellow]")
             console.print("Run 'roller-installer cli install' to update")
@@ -255,7 +256,7 @@ def extract_assets(
 
         result = extract_fatdata(source_path, output_path)
 
-        console.print("[green]✅ Successfully extracted FATDATA![/green]")
+        console.print(f"[green]{ICONS['success']} Successfully extracted FATDATA![/green]")
         console.print(f"Location: {result.fatdata_path}")
 
         if result.has_music:
@@ -326,26 +327,26 @@ def download_tools(
                     # Tool already existed and wasn't re-downloaded
                     path = result['path']
                     if path.parent.name == 'tools':
-                        console.print(f"  ✓ [green]Already installed at:[/green] {path}")
+                        console.print(f"  {ICONS['check']} [green]Already installed at:[/green] {path}")
                     else:
-                        console.print(f"  ✓ [green]Found in system at:[/green] {path}")
-                        console.print(f"  ℹ️  Use --force to download to tools/ directory anyway")
+                        console.print(f"  {ICONS['check']} [green]Found in system at:[/green] {path}")
+                        console.print(f"  {ICONS['info']}  Use --force to download to tools/ directory anyway")
                 else:
                     # Tool was downloaded/installed
-                    console.print(f"  ✅ [bold green]Downloaded successfully:[/bold green] {result['path']}")
+                    console.print(f"  {ICONS['success']} [bold green]Downloaded successfully:[/bold green] {result['path']}")
                 
                 # Test the tool if verbose
                 if verbose and result.get('working') is True:
-                    console.print(f"  ✓ [green]{tool_name} is working correctly[/green]")
+                    console.print(f"  {ICONS['check']} [green]{tool_name} is working correctly[/green]")
                 elif verbose and result.get('working') is False:
-                    console.print(f"  ⚠️  [yellow]{tool_name} may not be working correctly[/yellow]")
+                    console.print(f"  {ICONS['warning']}  [yellow]{tool_name} may not be working correctly[/yellow]")
                 
                 success_count += 1
             else:
-                console.print(f"  ❌ [red]{result['error']}[/red]")
+                console.print(f"  {ICONS['error']} [red]{result['error']}[/red]")
                 
         except Exception as e:
-            console.print(f"  ❌ [red]Error processing {tool_name}: {str(e)}[/red]")
+            console.print(f"  {ICONS['error']} [red]Error processing {tool_name}: {str(e)}[/red]")
             if verbose:
                 import traceback
                 console.print(f"[dim]{traceback.format_exc()}[/dim]")
@@ -354,12 +355,12 @@ def download_tools(
     
     # Summary
     if success_count == total_count:
-        console.print(f"✅ [bold green]All {total_count} tools are ready![/bold green]")
+        console.print(f"{ICONS['success']} [bold green]All {total_count} tools are ready![/bold green]")
     elif success_count > 0:
-        console.print(f"⚠️  [yellow]{success_count}/{total_count} tools are ready[/yellow]")
+        console.print(f"{ICONS['warning']}  [yellow]{success_count}/{total_count} tools are ready[/yellow]")
         console.print("Some tools may not be available or failed to download.")
     else:
-        console.print("❌ [bold red]No tools were successfully downloaded[/bold red]")
+        console.print(f"{ICONS['error']} [bold red]No tools were successfully downloaded[/bold red]")
         raise typer.Exit(1)
 
 
@@ -383,20 +384,20 @@ def self_update(
 
     console.print(table)
     console.print()
-    console.print("✅ Arguments parsed successfully!")
+    console.print(f"{ICONS['success']} Arguments parsed successfully!")
 
 
 def gui():
     """Launch the GUI installer (default behavior)."""
-    console.print("[bold green]🚀 Launching ROLLER Installer GUI...[/bold green]")
-    console.print("[yellow]⚠️  GUI not implemented yet - coming soon![/yellow]")
+    console.print(f"[bold green]{ICONS['rocket']} Launching ROLLER Installer GUI...[/bold green]")
+    console.print(f"[yellow]{ICONS['warning']}  GUI not implemented yet - coming soon![/yellow]")
 
 
 @app.command()
 def tui():
     """Launch the text-based user interface installer."""
-    console.print("[bold blue]🖥️  Launching ROLLER Installer TUI...[/bold blue]")
-    console.print("[yellow]⚠️  TUI not implemented yet - coming soon![/yellow]")
+    console.print(f"[bold blue]{ICONS['desktop']}  Launching ROLLER Installer TUI...[/bold blue]")
+    console.print(f"[yellow]{ICONS['warning']}  TUI not implemented yet - coming soon![/yellow]")
 
 
 # Add CLI subcommand to main app

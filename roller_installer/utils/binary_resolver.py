@@ -11,6 +11,8 @@ import urllib.request
 from pathlib import Path
 from typing import Optional, List, Callable
 
+from .icons import ICONS
+
 
 class BinaryResolver:
     """
@@ -399,7 +401,7 @@ class ToolManager:
         tools_needed = any(not info['available'] for info in availability.values())
 
         if tools_needed and progress_callback:
-            progress_callback("📥 Downloading required tools...")
+            progress_callback(f"{ICONS['download']} Downloading required tools...")
 
         for tool_name, description, resolver_func in self._tools:
             resolver = resolver_func() if not self.install_dir else resolver_func(self.install_dir)

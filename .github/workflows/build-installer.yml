@@ -87,53 +87,6 @@ jobs:
             ./roller-installer --help || echo "Binary test completed with exit code $?"
           fi
 
-      - name: Cache ubi binary
-        id: cache-ubi
-        uses: actions/cache@v4
-        with:
-          path: dist/ubi${{ matrix.ubi-suffix }}
-          key: ubi-${{ runner.os }}-${{ matrix.arch }}-${{ hashFiles('mise.toml') }}
-          restore-keys: |
-            ubi-${{ runner.os }}-${{ matrix.arch }}-
-            ubi-${{ runner.os }}-
-
-      - name: Download ubi binary
-        if: steps.cache-ubi.outputs.cache-hit != 'true'
-        working-directory: dist
-        shell: bash
-        run: |
-          if [[ "${{ runner.os }}" == "Windows" ]]; then
-            powershell -exec bypass -c "Invoke-WebRequest -URI 'https://raw.githubusercontent.com/houseabsolute/ubi/master/bootstrap/bootstrap-ubi.ps1' -UseBasicParsing | Invoke-Expression"
-          else
-            # For cross-compilation on Linux ARM64, we need to set the target architecture
-            if [[ "${{ matrix.arch }}" == "aarch64" && "${{ runner.os }}" == "Linux" ]]; then
-              export TARGET_ARCH="aarch64"
-            fi
-            curl --silent --location https://raw.githubusercontent.com/houseabsolute/ubi/master/bootstrap/bootstrap-ubi.sh | TARGET=$(pwd) sh
-          fi
-
-      - name: Verify binaries
-        working-directory: dist
-        shell: bash
-        run: |
-          # List contents of dist directory
-          ls -la
-
-          # Verify both binaries exist
-          if [[ "${{ runner.os }}" == "Windows" ]]; then
-            if [[ ! -f "roller-installer.exe" || ! -f "ubi.exe" ]]; then
-              echo "Missing binaries!"
-              exit 1
-            fi
-            echo "✓ Found roller-installer.exe and ubi.exe"
-          else
-            if [[ ! -f "roller-installer" || ! -f "ubi" ]]; then
-              echo "Missing binaries!"
-              exit 1
-            fi
-            echo "✓ Found roller-installer and ubi"
-          fi
-
       - name: Upload artifact (folder)
         uses: actions/upload-artifact@v4
         with:
@@ -214,13 +167,11 @@ jobs:
         run: |
           echo "## Build Summary" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
-          echo "| Platform | Status | ZIP Contents |" >> $GITHUB_STEP_SUMMARY
-          echo "|----------|--------|--------------|" >> $GITHUB_STEP_SUMMARY
-          echo "| Linux x64 | ✅ Success | roller-installer + ubi |" >> $GITHUB_STEP_SUMMARY
-          echo "| Linux ARM64 | ✅ Success | roller-installer + ubi |" >> $GITHUB_STEP_SUMMARY
-          echo "| macOS ARM64 | ✅ Success | roller-installer + ubi |" >> $GITHUB_STEP_SUMMARY
-          echo "| Windows x64 | ✅ Success | roller-installer.exe + ubi.exe |" >> $GITHUB_STEP_SUMMARY
+          echo "| Platform | Status |" >> $GITHUB_STEP_SUMMARY
+          echo "|----------|--------|" >> $GITHUB_STEP_SUMMARY
+          echo "| Linux x64 | ✅ Success |" >> $GITHUB_STEP_SUMMARY
+          echo "| Linux ARM64 | ✅ Success |" >> $GITHUB_STEP_SUMMARY
+          echo "| macOS ARM64 | ✅ Success |" >> $GITHUB_STEP_SUMMARY
+          echo "| Windows x64 | ✅ Success |" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
-          echo "All installer ZIP packages built successfully!" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-          echo "Each ZIP contains both the roller-installer binary and the ubi binary for self-contained distribution." >> $GITHUB_STEP_SUMMARY
+          echo "All installer packages built successfully!" >> $GITHUB_STEP_SUMMARY

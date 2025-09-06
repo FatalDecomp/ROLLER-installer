@@ -8,6 +8,9 @@ __pycache__/
 *.pyc
 *.pyo
 
+# Downloaded tools (ubi, bchunk, etc)
+tools/
+
 # Poetry
 poetry.lock
 

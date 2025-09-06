@@ -4,20 +4,21 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Development Commands
 
-This project uses `mise` for task management and `poetry` for dependency management:
+**IMPORTANT**: This project uses `poetry` for dependency management. NEVER use `pip` directly or run `python` without `poetry run`. Always use the mise tasks or poetry commands.
 
 ```bash
-# Install dependencies
+# Install dependencies (REQUIRED before running anything)
 mise run deps
 # or: poetry install
 
-# Run the installer in development
+# Run the installer in development (ALWAYS use poetry run or mise tasks)
 mise run installer -- --help
 mise run installer -- install --version v1.0.0
+# or: poetry run python -m roller_installer --help
 
 # Build native binary
 mise run build
-# or: poetry run pyinstaller --onefile --name roller-installer --clean main.py
+# or: poetry run python scripts/build.py
 # Output: dist/roller-installer (or .exe on Windows)
 
 # Test GitHub Actions locally
@@ -27,6 +28,11 @@ mise run test-github-workflows
 # Install CI dependencies
 mise run install:ci
 ```
+
+**DO NOT USE:**
+- `pip install` - Use `poetry add` or `poetry install` instead
+- `python -m roller_installer` - Use `poetry run python -m roller_installer` or `mise run installer`
+- Direct python execution without poetry
 
 ## Project Architecture
 

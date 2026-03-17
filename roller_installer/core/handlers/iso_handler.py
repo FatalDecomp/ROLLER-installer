@@ -86,9 +86,9 @@ class IsoHandler(BaseAssetHandler):
                     continue
 
                 child_iso_path = f"{iso_path}/{child_name}".replace("//", "/")
-                child_output_path = (
-                    output_dir / child_name.lower()
-                )  # Use lowercase for output
+                # Strip ISO 9660 version suffix (e.g. ";1") and lowercase
+                clean_name = child_name.split(";")[0].lower()
+                child_output_path = output_dir / clean_name
 
                 if child.is_dir():
                     # Create directory and recurse

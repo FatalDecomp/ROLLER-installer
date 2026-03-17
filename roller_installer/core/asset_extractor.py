@@ -128,6 +128,9 @@ class AssetExtractorRegistry:
 
         Returns:
             Handler instance, or None if no handler available
+
+        Raises:
+            RuntimeError: If handler exists but cannot handle file due to missing dependencies
         """
         extension = file_path.suffix.lower()
         handler_spec = self._handlers.get(extension)
@@ -154,8 +157,12 @@ class AssetExtractorRegistry:
         # Register handler classes by name to avoid circular imports
         self._handlers[".zip"] = "roller_installer.core.handlers.zip_handler:ZipHandler"
         self._handlers[".iso"] = "roller_installer.core.handlers.iso_handler:IsoHandler"
-        self._handlers[".cue"] = "roller_installer.core.handlers.cue_bin_handler:CueBinHandler"
-        self._handlers[".bin"] = "roller_installer.core.handlers.cue_bin_handler:CueBinHandler"
+        self._handlers[".cue"] = (
+            "roller_installer.core.handlers.cue_bin_handler:CueBinHandler"
+        )
+        self._handlers[".bin"] = (
+            "roller_installer.core.handlers.cue_bin_handler:CueBinHandler"
+        )
 
 
 # Global registry instance
